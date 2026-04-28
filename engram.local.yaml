@@ -1,0 +1,50 @@
+server:
+  mcp_stdio: true
+  http_addr: ":8080"
+
+embedding:
+  provider: ollama
+  base_url: http://localhost:11434
+  model: nomic-embed-text
+  dim: 768
+  batch: 32
+  timeout_ms: 5000
+  retries: 3
+
+vector:
+  provider: qdrant
+  addr: localhost:6334
+  collection: memories
+
+meta:
+  provider: postgres
+  dsn: postgres://engram:engram@localhost:5432/engram?sslmode=disable
+
+retrieval:
+  vector_k: 20
+  bm25_k: 20
+  rerank_k: 20
+  final_k: 5
+  rrf_k: 60
+  vector_floor: 0.25
+
+rerank:
+  enabled: true
+  provider: crossenc          # crossenc | llm | remote | none
+  crossenc_model_path: /models/bge-reranker-base.onnx
+  llm_model: llama3.2:1b
+  remote:
+    base_url: ""
+    api_key_env: ""
+    model: ""
+  timeout_ms: 1500
+  max_candidates: 20
+
+chunking:
+  max_tokens: 512
+  min_tokens: 100
+  similarity_threshold: 0.6
+
+logging:
+  level: debug
+  format: json
