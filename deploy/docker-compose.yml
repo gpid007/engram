@@ -54,7 +54,7 @@ services:
     restart: "no"
 
   neo4j:
-    image: neo4j:5.28-community
+    image: neo4j:5-community
     container_name: engram-neo4j
     ports:
       - "7474:7474"

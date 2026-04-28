@@ -809,7 +809,7 @@ go vet ./internal/store/neo4j/...
 docker run --rm -d --name neo4j-test -p 7687:7687 -p 7474:7474 \
   -e NEO4J_AUTH=neo4j/engrampass \
   -e NEO4J_ACCEPT_LICENSE_AGREEMENT=yes \
-  neo4j:5.28-community
+  neo4j:5-community
 sleep 30
 NEO4J_TEST_URI=bolt://localhost:7687 \
 NEO4J_TEST_USER=neo4j \
@@ -1331,7 +1331,7 @@ go test ./internal/config/... -count=1
 
 ```yaml
   neo4j:
-    image: neo4j:5.28-community
+    image: neo4j:5-community
     container_name: engram-neo4j
     ports:
       - "7474:7474"
