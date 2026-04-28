@@ -2,21 +2,32 @@
 
 A portable, MCP-native memory harness in Go. Engram gives LLM agents a durable
 hybrid-retrieval memory: Qdrant for dense vectors, Postgres for BM25 + metadata,
-Ollama for local embeddings, and a swappable reranker (cross-encoder, LLM, or
-remote API). Runs end-to-end via Docker Compose. Same handlers serve both an
-MCP stdio transport and an HTTP+JSON API.
+Ollama or local ONNX inference for embeddings, and a swappable reranker
+(cross-encoder, LLM, or remote API). Runs end-to-end via Docker Compose. Same
+handlers serve both an MCP stdio transport and an HTTP+JSON API.
 
-## Quickstart
+## Quickstart (Local with ONNX)
+
+**Fast local setup with native ONNX embeddings:**
 
 ```bash
 git clone https://github.com/gregdhill/engram.git
 cd engram
-docker compose -f deploy/docker-compose.yml up
+
+# Build binary with local ONNX inference (one-time, ~5 min)
+make build-onnx
+
+# Verify ONNX embedder works
+./test_onnx_local.sh
+
+# Start full backend stack (Qdrant, Postgres, Neo4j)
+docker compose -f deploy/docker-compose.yml up -d
 ```
 
-First boot pulls the Ollama models (`nomic-embed-text`, `llama3.2:1b`) and
-takes ~2 minutes. The `init-models` service exits successfully once both are
-cached; `engram` waits on it. After everything reports healthy:
+The `bin/engram` binary now uses local ONNX inference (5–10x faster than Ollama).
+Models are cached in `models/nomic-embed-text-v1.5/` (~520 MB, downloaded once).
+
+**Test the API:**
 
 ```bash
 # Store a memory
@@ -30,12 +41,62 @@ curl -s -X POST http://localhost:8080/v1/retrieve \
   -d '{"query":"cell energy","k":3}' | jq .
 ```
 
+## Quickstart (Docker with Ollama)
+
+```bash
+git clone https://github.com/gregdhill/engram.git
+cd engram
+docker compose -f deploy/docker-compose.yml up
+```
+
+First boot pulls the Ollama models (`nomic-embed-text`, `llama3.2:1b`) and
+takes ~2 minutes. The `init-models` service exits successfully once both are
+cached; `engram` waits on it.
+
 ## MCP Integration
 
 Engram exposes three MCP tools: `store_memory`, `retrieve_context`,
-`get_user_state`. Connect via stdio against the running container.
+`get_user_state`. Connect via stdio against the running container or binary.
 
-### OpenCode (`~/.config/opencode/config.json`)
+### OpenCode — Local ONNX Binary (Recommended)
+
+**Setup (once):**
+
+```bash
+cd /path/to/engram
+make build-onnx
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+**Configure OpenCode** (`~/.config/opencode/opencode.json`):
+
+```json
+{
+  "mcp": {
+    "engram": {
+      "type": "local",
+      "command": ["/path/to/engram/bin/engram", "-config", "/path/to/engram/engram.local.yaml"],
+      "enabled": true,
+      "timeout": 10000
+    }
+  }
+}
+```
+
+This uses the local `bin/engram` binary with `-tags onnxembed` for fast ONNX embeddings.
+No network, no Ollama container overhead.
+
+**Restart OpenCode** to load the updated Engram MCP server:
+```
+ctrl+p → "restart MCP server" or restart OpenCode entirely
+```
+
+Now OpenCode's agents can use `store_memory` and `retrieve_context` tools to persist and
+recall memory with local ONNX inference.
+
+### OpenCode — Docker Container (Legacy)
+
+If you prefer containerized Ollama embeddings instead:
 
 ```json
 {
@@ -48,21 +109,22 @@ Engram exposes three MCP tools: `store_memory`, `retrieve_context`,
 }
 ```
 
+Requires `docker compose up -d` with the Ollama image.
+
 ### Claude Desktop (`claude_desktop_config.json`)
 
 ```json
 {
   "mcpServers": {
     "engram": {
-      "command": "docker",
-      "args": ["exec", "-i", "engram-engram-1", "/engram", "--mcp"]
+      "command": "/path/to/engram/bin/engram",
+      "args": ["-config", "/path/to/engram/engram.local.yaml"]
     }
   }
 }
 ```
 
-The container name `engram-engram-1` matches `docker compose ps`. For a binary
-install, replace the command with the path to `engram --mcp`.
+Same setup as OpenCode — uses local ONNX binary.
 
 ## HTTP API
 
@@ -119,9 +181,11 @@ Engram loads `engram.yaml` from the working directory by default, or from
 |---|---|---|
 | `server.mcp_stdio`            | `true`                                                 | Run MCP alongside HTTP. |
 | `server.http_addr`            | `:8080`                                                | HTTP listen address. |
-| `embedding.provider`          | `ollama`                                               | Only ollama in v1. |
-| `embedding.base_url`          | `http://ollama:11434`                                  | Ollama endpoint. |
-| `embedding.model`             | `nomic-embed-text`                                     | Must match `embedding.dim`. |
+| `embedding.provider`          | `ollama`                                               | `ollama` \| `onnx`. Use `onnx` for local ONNX inference (requires `build -tags onnxembed`). |
+| `embedding.base_url`          | `http://ollama:11434`                                  | Ollama endpoint (unused when `provider=onnx`). |
+| `embedding.model`             | `nomic-embed-text`                                     | Must match `embedding.dim`. Unused when `provider=onnx`. |
+| `embedding.model_dir`         | `""`                                                   | Path to directory with `model.onnx` + `tokenizer.json`. Required when `provider=onnx`. |
+| `embedding.max_seq_len`       | `8192`                                                 | Max token length for ONNX tokenizer truncation. |
 | `embedding.dim`               | `768`                                                  | Vector dimension. |
 | `embedding.batch`             | `32`                                                   | Embed batch size. |
 | `embedding.timeout_ms`        | `5000`                                                 | Per-request timeout. |
@@ -167,7 +231,7 @@ See `engram.yaml` for the full sample.
 │          Reranker, Chunker, GraphStore (stub)        │
 └────┬──────────────┬──────────────────┬───────────────┘
      │              │                  │
-   Qdrant       Postgres            Ollama
+   Qdrant       Postgres            Ollama | ONNX
   (vectors)   (rows + tsvector)   (embed + LLM rerank)
                                      │
                             optional: cross-encoder
@@ -221,15 +285,111 @@ start.
 - **`degraded: true` in retrieve stats** — vector leg failed, results came
   from BM25 only. Usually transient; check Qdrant health.
 
+## ONNX Build (Local Inference)
+
+By default Engram uses Ollama for embeddings. The `onnxembed` build tag swaps in
+a local ONNX runtime (via `yalue/onnxruntime_go`) for 5–10x faster ingestion with
+no network hop.
+
+### Prerequisites
+
+- Go 1.21+ with CGO enabled
+- Rust toolchain (`daulet/tokenizers` compiles a Rust crate via CGO)
+- ~600 MB disk for model files
+
+**Install Rust if missing:**
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source $HOME/.cargo/env
+```
+
+### 1. Fetch model files
+
+```bash
+MODEL_DIR=/path/to/models/nomic-embed-text-v1.5 \
+HF_REVISION=16999335555c8808544a0344d2d4d9834ba70404 \
+bash scripts/fetch-models.sh
+```
+
+Expected output in `MODEL_DIR`: `model.onnx` (~580 MB) and `tokenizer.json` (~2 MB).
+The script uses conditional HTTP (`-z`) so re-runs are cheap.
+
+### 2. Build with ONNX tag
+
+```bash
+CGO_ENABLED=1 go build -tags onnxembed -o bin/engram ./cmd/engram/
+# or via make:
+make build-onnx
+```
+
+`yalue/onnxruntime_go` bundles a pre-built ONNX Runtime shared library for
+common platforms (darwin/arm64, linux/amd64, linux/arm64), so no separate
+ONNX Runtime install is needed.
+
+### 3. Configure
+
+In your `engram.yaml` (or `engram.local.yaml`):
+
+```yaml
+embedding:
+  provider: onnx
+  model_dir: /path/to/models/nomic-embed-text-v1.5
+  max_seq_len: 8192
+  dim: 768       # nomic-embed-text-v1.5 produces 768-dim vectors
+  batch: 32
+```
+
+Or via environment:
+```bash
+ENGRAM_EMBEDDING_PROVIDER=onnx \
+ENGRAM_EMBEDDING_MODEL_DIR=/path/to/models/nomic-embed-text-v1.5 \
+./bin/engram -config engram.yaml
+```
+
+### 4. Verify
+
+```bash
+# Readyz endpoint reports embedder reachable
+curl -s http://localhost:8080/readyz | jq .
+```
+
+On startup, the ONNX embedder runs a warmup pass. If it fails (wrong path, wrong
+architecture), Engram logs the error and exits — it does **not** silently fall
+back, so misconfiguration is obvious.
+
+### ONNX in Docker Compose
+
+The `model-init` sidecar downloads models into a named volume automatically:
+
+```bash
+ENGRAM_EMBEDDING_PROVIDER=onnx docker compose -f deploy/docker-compose.yml up -d
+```
+
+The `engram` service waits for the sidecar to exit before starting.
+
 ## Development
 
 ```bash
-make build   # go build ./...
-make test    # go test ./...
-make lint    # go vet ./...
-make up      # docker compose up -d
-make down    # docker compose down
+make build        # go build ./...
+make build-onnx   # CGO_ENABLED=1 go build -tags onnxembed -o bin/engram ./cmd/engram/
+make test         # go test ./...
+make lint         # go vet ./...
+make up           # docker compose up -d
+make down         # docker compose down
 ```
+
+### Local Testing (ONNX Embedder)
+
+```bash
+# Verify ONNX build without full backend stack
+./test_onnx_local.sh
+
+# Check binary + model files
+file bin/engram
+ls -lh models/nomic-embed-text-v1.5/
+```
+
+### Integration Testing
 
 Integration tests (testcontainers, real Postgres + Qdrant + httptest Ollama):
 
@@ -253,7 +413,7 @@ internal/config/           # YAML + env loader
 internal/mcp/              # MCP stdio transport
 internal/httpapi/          # HTTP transport + /metrics
 internal/memory/           # Ingestor, Retriever, Reconciler
-internal/embed/            # Ollama embedder
+internal/embed/            # Ollama embedder + ONNX embedder (build tag: onnxembed)
 internal/chunk/            # Semantic chunker
 internal/fusion/           # RRF
 internal/rerank/           # crossenc | llm | remote
@@ -283,9 +443,9 @@ Engram orchestrates a hybrid-retrieval pipeline across specialized backends:
    │            │           │            │
    ▼            ▼           ▼            ▼
 ┌──────┐   ┌──────────┐  ┌────────┐  ┌──────────────────┐
-│Qdrant│   │ Postgres │  │ Neo4j  │  │ Ollama           │
-│      │   │          │  │        │  │  embed + LLM     │
-│vecs  │   │metadata, │  │chunk & │  │  rerank          │
+│Qdrant│   │ Postgres │  │ Neo4j  │  │ Ollama | ONNX    │
+│      │   │          │  │        │  │  embed (+ LLM    │
+│vecs  │   │metadata, │  │chunk & │  │  rerank w/Ollama)│
 │cosine│   │tsvector, │  │memory  │  └──────────────────┘
 │search│   │BM25,     │  │graph   │       │
 │      │   │pending_  │  │NEXT,   │       │ optional:
@@ -300,9 +460,10 @@ Ingest write paths:
 
 Retrieve read paths:
   1. Embed query via Ollama
-  2. Parallel fanout: Qdrant.Search + Postgres.SearchBM25
-  3. RRF fusion → top-k
-  4. Optional: Neo4j.ExpandRelated via NEXT|SIMILAR edges (depth=1)
+   2. Parallel fanout: Qdrant.Search + Postgres.SearchBM25
+   3. RRF fusion → top-k
+   4. Optional: Neo4j.ExpandRelated via NEXT|SIMILAR edges (depth=1)
+   Note: step 1 uses Ollama OR local ONNX depending on `embedding.provider`.
   5. Reranker (crossenc / llm / remote / none)
   6. Return top-final_k
 ```

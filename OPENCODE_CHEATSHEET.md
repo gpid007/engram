@@ -3,19 +3,19 @@
 ## One-Time Setup
 
 ```bash
-# 1. Build binary
-go build -o ./bin/engram ./cmd/engram
+# 1. Build binary with ONNX (fast local inference — no Ollama needed)
+make build-onnx
 
-# 2. Auto-configure OpenCode
-./scripts/setup-opencode.sh
+# 2. Seed knowledge-base with project context
+bash scripts/seed-memories.sh
 
-# Done! Config is saved to ~/.config/opencode/opencode.json
+# Done! Config is at ~/.config/opencode/opencode.json
 ```
 
 ## Daily Workflow
 
 ```bash
-# Terminal 1: Start services
+# Terminal 1: Start backend services + Engram
 ./run-local.sh
 
 # Terminal 2: Start OpenCode
@@ -67,24 +67,24 @@ nano ~/.config/opencode/opencode.json
 
 ## Services
 
-Started by `./run-local.sh`:
+Started by `./run-local.sh` (via docker compose):
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| Postgres | 5432 | Metadata store |
-| Qdrant | 6333 | Vector search (HTTP) |
+| Postgres | 5432 | Metadata + BM25 store |
+| Qdrant | 6333 | Vector search (HTTP dashboard) |
 | Qdrant | 6334 | Vector search (gRPC) |
-| Ollama | 11434 | Embeddings + LLM |
-| Engram | stdio | MCP protocol |
+| Neo4j | 7687 | Graph memory (optional) |
+| Engram | 8080 | HTTP API + MCP stdio |
+
+Note: Ollama is **not required** — embeddings run locally via ONNX (`bin/engram -tags onnxembed`).
 
 ## Health Checks
 
 ```bash
-# Check Engram
+# Check Engram (liveness + readiness)
 curl http://localhost:8080/healthz
-
-# Check Ollama
-curl http://localhost:11434/
+curl http://localhost:8080/readyz
 
 # Check Qdrant
 curl http://localhost:6333/
@@ -92,8 +92,8 @@ curl http://localhost:6333/
 # Check Postgres
 psql -h localhost -U engram -d engram -c "SELECT 1"
 
-# Check all services
-docker ps | grep -E "postgres|qdrant|ollama"
+# Check all docker services
+docker compose -f deploy/docker-compose.yml ps
 ```
 
 ## Common Issues & Fixes
@@ -130,15 +130,17 @@ nano ~/.config/opencode/opencode.json
 # Restart OpenCode
 ```
 
-### Embedding fails (HTTP 404)
+### Embedding fails or is slow (>50ms)
 ```bash
-# Check models
-curl http://localhost:11434/api/tags
+# Binary may be stub build (without ONNX). Rebuild:
+make build-onnx
 
-# Pull models manually
-curl -X POST http://localhost:11434/api/pull \
-  -H "Content-Type: application/json" \
-  -d '{"name": "nomic-embed-text"}'
+# Verify model files exist
+ls -lh models/nomic-embed-text-v1.5/
+# Expected: model.onnx (~522MB) + tokenizer.json (~695KB)
+
+# Re-download if missing
+MODEL_DIR=models/nomic-embed-text-v1.5 bash scripts/fetch-models.sh
 ```
 
 ## Useful Prompts

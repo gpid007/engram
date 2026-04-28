@@ -1,7 +1,18 @@
-.PHONY: build test lint up down
+TOKENIZERS_BUILD_DIR ?= $(CURDIR)/.tokenizers-build
+TOKENIZERS_MODULE    := $(shell go env GOPATH)/pkg/mod/github.com/daulet/tokenizers@$(shell go list -m -f '{{.Version}}' github.com/daulet/tokenizers 2>/dev/null)
+
+.PHONY: build build-onnx libtokenizers test lint up down
 
 build:
 	go build ./...
+
+libtokenizers:
+	@mkdir -p $(TOKENIZERS_BUILD_DIR)
+	cd $(TOKENIZERS_MODULE) && CARGO_TARGET_DIR=$(TOKENIZERS_BUILD_DIR) cargo build --release -p tokenizers-ffi
+	cp $(TOKENIZERS_BUILD_DIR)/release/libtokenizers_ffi.a $(TOKENIZERS_BUILD_DIR)/libtokenizers.a
+
+build-onnx: libtokenizers
+	CGO_ENABLED=1 CGO_LDFLAGS="-L$(TOKENIZERS_BUILD_DIR)" go build -tags onnxembed -o bin/engram ./cmd/engram/
 
 test:
 	go test ./...

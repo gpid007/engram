@@ -3,17 +3,15 @@ server:
   http_addr: ":8080"
 
 embedding:
-  provider: ollama
-  base_url: http://localhost:11434
-  model: nomic-embed-text
+  provider: onnx
+  model_dir: /Users/greg/git/engram/models/nomic-embed-text-v1.5
+  max_seq_len: 8192
   dim: 768
   batch: 32
   timeout_ms: 5000
   retries: 3
-  # To use ONNX embedder locally:
-  # provider: onnx
-  # model_dir: /models/nomic-embed-text-v1.5
-  # max_seq_len: 8192
+  # base_url and model are unused when provider=onnx
+  # To switch back to Ollama: provider: ollama, base_url: http://localhost:11434, model: nomic-embed-text
 
 vector:
   provider: qdrant
