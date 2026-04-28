@@ -64,7 +64,7 @@ jobs:
           - 6333:6333
           - 6334:6334
         options: >-
-          --health-cmd "wget -qO- http://localhost:6333/healthz || exit 1"
+          --health-cmd "curl -f http://localhost:6333/health || exit 1"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
