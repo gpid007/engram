@@ -53,6 +53,18 @@ services:
       OLLAMA_HOST: http://ollama:11434
     restart: "no"
 
+  model-init:
+    image: curlimages/curl:latest
+    user: root
+    volumes:
+      - models:/models
+      - ../scripts/fetch-models.sh:/fetch-models.sh:ro
+    environment:
+      MODEL_DIR: /models/nomic-embed-text-v1.5
+      HF_REVISION: ${HF_REVISION:-16999335555c8808544a0344d2d4d9834ba70404}
+    entrypoint: ["sh", "/fetch-models.sh"]
+    restart: "no"
+
   neo4j:
     image: neo4j:5-community
     container_name: engram-neo4j
@@ -88,11 +100,15 @@ services:
       ENGRAM_META_DSN: postgres://engram:engram@postgres:5432/engram?sslmode=disable
       ENGRAM_VECTOR_ADDR: qdrant:6334
       ENGRAM_EMBEDDING_BASE_URL: http://ollama:11434
+      ENGRAM_EMBEDDING_MODEL_DIR: /models/nomic-embed-text-v1.5
+      ENGRAM_EMBEDDING_PROVIDER: ${ENGRAM_EMBEDDING_PROVIDER:-ollama}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-engrampass}
       ENGRAM_GRAPH_PROVIDER: ${ENGRAM_GRAPH_PROVIDER:-none}
       ENGRAM_GRAPH_URI: bolt://neo4j:7687
       ENGRAM_GRAPH_USERNAME: neo4j
       ENGRAM_GRAPH_PASSWORD_ENV: NEO4J_PASSWORD
+    volumes:
+      - models:/models:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
       interval: 10s
@@ -104,3 +120,4 @@ volumes:
   qdrantdata:
   ollamadata:
   neo4jdata:
+  models:

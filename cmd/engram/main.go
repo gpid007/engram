@@ -87,8 +87,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 6. Create Ollama embedder.
-	embedder := embed.NewOllamaEmbedder(embed.Config{
+	// 6. Create embedder (Ollama default, ONNX if configured).
+	ollamaEmbedder := embed.NewOllamaEmbedder(embed.Config{
 		BaseURL: cfg.Embedding.BaseURL,
 		Model:   cfg.Embedding.Model,
 		Dim:     cfg.Embedding.Dim,
@@ -96,6 +96,26 @@ func main() {
 		Timeout: time.Duration(cfg.Embedding.TimeoutMS) * time.Millisecond,
 		Retries: cfg.Embedding.Retries,
 	})
+
+	var embedder embed.Embedder = ollamaEmbedder
+	if cfg.Embedding.Provider == "onnx" {
+		onnxEmb, onnxErr := embed.NewONNXEmbedder(embed.ONNXConfig{
+			ModelDir:  cfg.Embedding.ModelDir,
+			MaxSeqLen: cfg.Embedding.MaxSeqLen,
+			Dim:       cfg.Embedding.Dim,
+			BatchSize: cfg.Embedding.Batch,
+			Timeout:   time.Duration(cfg.Embedding.TimeoutMS) * time.Millisecond,
+		})
+		if onnxErr != nil {
+			slog.Warn("onnx embedder failed; falling back to ollama",
+				"err", onnxErr,
+				"model_dir", cfg.Embedding.ModelDir,
+			)
+		} else {
+			embedder = onnxEmb
+			slog.Info("onnx embedder initialized", "model_dir", cfg.Embedding.ModelDir)
+		}
+	}
 
 	// 7. Ensure Qdrant collection exists with correct dimension.
 	slog.Info("ensuring qdrant collection", "collection", cfg.Vector.Collection, "dim", cfg.Embedding.Dim)

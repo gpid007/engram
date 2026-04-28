@@ -117,7 +117,7 @@ func (r *Retriever) Retrieve(ctx context.Context, input RetrieveInput) (*Retriev
 
 	// Embed query (counted toward VecMs).
 	embedStart := time.Now()
-	vecs, err := r.embedder.Embed(ctx, []string{input.Query})
+	vecs, err := r.embedder.EmbedQuery(ctx, []string{input.Query})
 	if err != nil {
 		return nil, fmt.Errorf("embed query: %w", err)
 	}

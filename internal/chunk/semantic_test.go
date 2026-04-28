@@ -15,7 +15,7 @@ type mockEmbedder struct {
 	fallback [][]float32 // indexed in call order across one Embed() call
 }
 
-func (m *mockEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
+func (m *mockEmbedder) embed(_ context.Context, texts []string) ([][]float32, error) {
 	out := make([][]float32, len(texts))
 	for i, t := range texts {
 		if v, ok := m.byText[t]; ok {
@@ -32,6 +32,14 @@ func (m *mockEmbedder) Embed(_ context.Context, texts []string) ([][]float32, er
 		out[i] = v
 	}
 	return out, nil
+}
+
+func (m *mockEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	return m.embed(ctx, texts)
+}
+
+func (m *mockEmbedder) EmbedQuery(ctx context.Context, texts []string) ([][]float32, error) {
+	return m.embed(ctx, texts)
 }
 
 func (m *mockEmbedder) Dim() int { return m.dim }

@@ -18,7 +18,8 @@ type mockEmbedder struct {
 }
 
 func (m *mockEmbedder) Dim() int { return m.dim }
-func (m *mockEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
+
+func (m *mockEmbedder) embed(_ context.Context, texts []string) ([][]float32, error) {
 	out := make([][]float32, len(texts))
 	for i, t := range texts {
 		v := make([]float32, m.dim)
@@ -30,6 +31,14 @@ func (m *mockEmbedder) Embed(_ context.Context, texts []string) ([][]float32, er
 		out[i] = v
 	}
 	return out, nil
+}
+
+func (m *mockEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	return m.embed(ctx, texts)
+}
+
+func (m *mockEmbedder) EmbedQuery(ctx context.Context, texts []string) ([][]float32, error) {
+	return m.embed(ctx, texts)
 }
 
 type mockMeta struct {

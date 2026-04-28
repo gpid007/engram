@@ -25,6 +25,8 @@ type EmbeddingConfig struct {
 	Batch     int    `yaml:"batch"`
 	TimeoutMS int    `yaml:"timeout_ms"`
 	Retries   int    `yaml:"retries"`
+	ModelDir  string `yaml:"model_dir"`  // ONNX: directory containing model.onnx and tokenizer.json
+	MaxSeqLen int    `yaml:"max_seq_len"` // ONNX: max token sequence length (default 8192)
 }
 
 // VectorConfig holds vector store settings.
@@ -236,6 +238,8 @@ func applyEnvOverrides(cfg *Config) {
 	setInt("ENGRAM_EMBEDDING_BATCH", &cfg.Embedding.Batch)
 	setInt("ENGRAM_EMBEDDING_TIMEOUT_MS", &cfg.Embedding.TimeoutMS)
 	setInt("ENGRAM_EMBEDDING_RETRIES", &cfg.Embedding.Retries)
+	setStr("ENGRAM_EMBEDDING_MODEL_DIR", &cfg.Embedding.ModelDir)
+	setInt("ENGRAM_EMBEDDING_MAX_SEQ_LEN", &cfg.Embedding.MaxSeqLen)
 
 	// Vector
 	setStr("ENGRAM_VECTOR_PROVIDER", &cfg.Vector.Provider)

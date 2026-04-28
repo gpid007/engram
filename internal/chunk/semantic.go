@@ -66,7 +66,7 @@ func (c *Chunker) Chunk(ctx context.Context, text string) ([]Chunk, error) {
 	}
 
 	// Embed all sentences in one batch.
-	embeddings, err := c.embedder.Embed(ctx, sentences)
+	embeddings, err := c.embedder.EmbedBatch(ctx, sentences)
 	if err != nil {
 		return nil, err
 	}

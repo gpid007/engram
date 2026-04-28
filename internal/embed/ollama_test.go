@@ -54,7 +54,7 @@ func TestHappyPath(t *testing.T) {
 	})
 
 	texts := []string{"hello", "world", "foo"}
-	got, err := e.Embed(context.Background(), texts)
+	got, err := e.EmbedBatch(context.Background(), texts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestBatching(t *testing.T) {
 	})
 
 	texts := []string{"a", "b", "c", "d", "e"}
-	got, err := e.Embed(context.Background(), texts)
+	got, err := e.EmbedBatch(context.Background(), texts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestRetryOn500(t *testing.T) {
 		Timeout: 5 * time.Second,
 	})
 
-	got, err := e.Embed(context.Background(), []string{"hello"})
+	got, err := e.EmbedBatch(context.Background(), []string{"hello"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestNoRetryOn400(t *testing.T) {
 		Timeout: 5 * time.Second,
 	})
 
-	_, err := e.Embed(context.Background(), []string{"hello"})
+	_, err := e.EmbedBatch(context.Background(), []string{"hello"})
 	if err == nil {
 		t.Fatal("expected error on 400, got nil")
 	}
@@ -184,13 +184,13 @@ func TestCircuitBreakerOpens(t *testing.T) {
 	ctx := context.Background()
 	// Drive 10 consecutive failures to open the circuit.
 	for i := 0; i < failureThreshold; i++ {
-		_, _ = e.Embed(ctx, []string{"x"})
+		_, _ = e.EmbedBatch(ctx, []string{"x"})
 	}
 
 	callsBefore := atomic.LoadInt32(&calls)
 
 	// Now the circuit should be open — this call must not hit the mock.
-	_, err := e.Embed(ctx, []string{"x"})
+	_, err := e.EmbedBatch(ctx, []string{"x"})
 	if err == nil {
 		t.Fatal("expected circuit-open error, got nil")
 	}
@@ -231,7 +231,7 @@ func TestCircuitBreakerCloses(t *testing.T) {
 	ctx := context.Background()
 	// Open the circuit.
 	for i := 0; i < failureThreshold; i++ {
-		_, _ = e.Embed(ctx, []string{"x"})
+		_, _ = e.EmbedBatch(ctx, []string{"x"})
 	}
 
 	// Confirm circuit is open.
@@ -243,7 +243,7 @@ func TestCircuitBreakerCloses(t *testing.T) {
 	now = now.Add(openDuration + time.Second)
 
 	// Next call should be allowed as a probe.
-	got, err := e.Embed(ctx, []string{"probe"})
+	got, err := e.EmbedBatch(ctx, []string{"probe"})
 	if err != nil {
 		t.Fatalf("expected probe to succeed, got error: %v", err)
 	}

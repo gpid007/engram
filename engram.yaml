@@ -10,6 +10,10 @@ embedding:
   batch: 32
   timeout_ms: 5000
   retries: 3
+  # ONNX provider (requires -tags onnxembed build and model sidecar):
+  # provider: onnx
+  # model_dir: /models/nomic-embed-text-v1.5
+  # max_seq_len: 8192
 
 vector:
   provider: qdrant

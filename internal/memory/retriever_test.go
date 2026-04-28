@@ -68,7 +68,8 @@ type rmockEmbedder struct {
 }
 
 func (e *rmockEmbedder) Dim() int { return e.dim }
-func (e *rmockEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
+
+func (e *rmockEmbedder) embed(_ context.Context, texts []string) ([][]float32, error) {
 	if e.sleep > 0 {
 		time.Sleep(e.sleep)
 	}
@@ -84,6 +85,14 @@ func (e *rmockEmbedder) Embed(_ context.Context, texts []string) ([][]float32, e
 		out[i] = v
 	}
 	return out, nil
+}
+
+func (e *rmockEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	return e.embed(ctx, texts)
+}
+
+func (e *rmockEmbedder) EmbedQuery(ctx context.Context, texts []string) ([][]float32, error) {
+	return e.embed(ctx, texts)
 }
 
 type rmockReranker struct {

@@ -14,8 +14,13 @@ import (
 )
 
 // Embedder produces vectors for text inputs.
+// EmbedBatch applies document-side prefixes (for ingest).
+// EmbedQuery applies query-side prefixes (for retrieval).
+// Implementations that do not use task prefixes may use the same
+// underlying logic for both methods.
 type Embedder interface {
-	Embed(ctx context.Context, texts []string) ([][]float32, error)
+	EmbedBatch(ctx context.Context, texts []string) ([][]float32, error)
+	EmbedQuery(ctx context.Context, texts []string) ([][]float32, error)
 	Dim() int
 }
 
@@ -73,8 +78,10 @@ func (o *OllamaEmbedder) Dim() int {
 	return o.cfg.Dim
 }
 
-// Embed embeds the given texts by splitting into batches and calling Ollama.
-func (o *OllamaEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
+// EmbedBatch embeds texts for document ingestion. Ollama's nomic-embed-text
+// model handles task prefixes internally via its modelfile template, so no
+// explicit prefix is prepended here.
+func (o *OllamaEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]float32, error) {
 	if err := o.checkCircuit(); err != nil {
 		return nil, err
 	}
@@ -101,6 +108,13 @@ func (o *OllamaEmbedder) Embed(ctx context.Context, texts []string) ([][]float32
 		results = append(results, embeddings...)
 	}
 	return results, nil
+}
+
+// EmbedQuery embeds texts for retrieval queries. Delegates to EmbedBatch
+// because Ollama's nomic-embed-text modelfile applies the correct template
+// regardless of the calling path.
+func (o *OllamaEmbedder) EmbedQuery(ctx context.Context, texts []string) ([][]float32, error) {
+	return o.EmbedBatch(ctx, texts)
 }
 
 // embedBatch sends one batch with retry+exponential backoff.
