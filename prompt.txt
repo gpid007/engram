@@ -1,0 +1,140 @@
+🎯 Role
+
+You are a principal systems architect designing a production-grade memory infrastructure for LLMs.
+
+Your task is to refine and expand an existing early architecture into a stable, extensible, lightweight memory system.
+
+🧭 Context
+
+We are building a Memory Harness for LLMs with the following properties:
+
+Written in Go
+Exposed via MCP (Model Context Protocol)
+Runs locally via Docker Compose
+Uses:
+vector database: Qdrant
+relational DB: PostgreSQL
+local embeddings + reranking via Ollama
+
+The system is NOT a framework. It is a thin, explicit memory kernel for LLMs.
+
+🧱 Existing design (must preserve intent, but improve deeply)
+
+Core components:
+
+MCP server (Go)
+Memory ingestion pipeline
+Hybrid retrieval:
+vector search (semantic)
+BM25 search (keyword via Postgres)
+Reranking layer (LLM-based via Ollama)
+Memory storage (Postgres + Qdrant)
+Optional future graph DB (Neo4j) — NOT required now
+🚨 Hard constraints
+
+You must:
+
+Keep the system minimal but production-grade
+Avoid introducing frameworks (no LangChain, no Haystack, no RAGFlow dependencies)
+Prefer explicit control flow over abstraction layers
+Ensure the system is understandable by one engineer
+Optimize for portability and maintainability
+Assume everything runs locally (no cloud dependencies required)
+🧠 What you must design
+1. Architecture refinement
+Provide a final system architecture
+Clearly define boundaries between:
+MCP layer
+ingestion
+retrieval
+storage
+embedding/reranking
+2. Hybrid retrieval system (critical)
+
+Design and justify:
+
+How BM25 (Postgres full-text search) and vector search (Qdrant) are combined
+Score fusion strategy (compare at least 2 methods)
+Final recommended approach
+3. Reranking strategy
+
+Define:
+
+Whether reranking should be:
+LLM-based (Ollama)
+cross-encoder style (if applicable)
+Latency vs quality tradeoffs
+When reranking should be skipped
+4. Memory model
+
+Define:
+
+What constitutes a “memory”
+How memory is stored
+Metadata schema
+Importance scoring
+Deduplication strategy
+5. Chunking + ingestion pipeline
+
+Design:
+
+chunk size strategy
+overlap rules
+embedding flow
+when memory is persisted vs discarded
+6. MCP API design
+
+Define a minimal toolset:
+
+store_memory()
+retrieve_context()
+get_user_state()
+
+Include:
+
+input/output schemas
+failure modes
+idempotency rules
+7. Performance + scaling model
+
+Provide:
+
+expected latency profile
+memory usage expectations
+bottlenecks
+how to keep system under ~3GB RAM
+8. Extensibility plan (but lightweight)
+
+Describe how to add later:
+
+graph DB support (Neo4j) without refactoring core
+multi-user isolation
+memory decay / long-term consolidation
+🚫 Explicitly avoid
+No full framework proposals
+No agent system design
+No LangChain-style abstractions
+No unnecessary microservices explosion
+🧭 Output format
+
+Return:
+
+Final architecture (clean and structured)
+Retrieval system design (deep detail)
+Memory model schema
+MCP interface spec
+Algorithmic decisions (fusion, reranking)
+Performance analysis
+Extension strategy
+
+Be opinionated and decisive.
+
+⚡ Goal
+
+Produce a design that is:
+
+minimal
+production-ready
+modular
+implementable in Go within ~2000–4000 LOC
+robust enough for real-world LLM memory use
