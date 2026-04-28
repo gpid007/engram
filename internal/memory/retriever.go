@@ -214,7 +214,11 @@ func (r *Retriever) Retrieve(ctx context.Context, input RetrieveInput) (*Retriev
 			ids = append(ids, f.ChunkID)
 			seen[f.ChunkID] = struct{}{}
 		}
-		expanded, gerr := r.graph.ExpandRelated(ctx, ids, 1)
+		// Use the user-scoped, capped variant.
+		expanded, gerr := r.graph.ExpandRelatedWithOptions(ctx, ids, 1, graph.ExpandOptions{
+			UserID:    input.UserID,
+			MaxExpand: 10,
+		})
 		if gerr == nil {
 			for _, id := range expanded {
 				if _, ok := seen[id]; ok {

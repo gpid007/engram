@@ -6,10 +6,13 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gregdhill/engram/internal/chunk"
+	"github.com/gregdhill/engram/internal/graph"
 	"github.com/gregdhill/engram/internal/store/postgres"
 	"github.com/gregdhill/engram/internal/store/qdrant"
 )
@@ -30,16 +33,110 @@ type StoreResult struct {
 	Stored        bool // false if ALL chunks were duplicates
 }
 
-// Ingestor orchestrates memory ingestion: chunk → metadata → vector.
+// Ingestor orchestrates memory ingestion: chunk → metadata → vector → graph.
 type Ingestor struct {
 	meta    postgres.MetaStore
 	vec     qdrant.VectorStore
 	chunker *chunk.Chunker
+	graph   graph.GraphStore // may be nil or NopStore
+	logger  *slog.Logger
+
+	// Worker pool for async graph writes. Dispatch is non-blocking; if the
+	// queue is full, the job is dropped and counted (graphDrops).
+	graphJobs   chan func(context.Context)
+	graphWG     sync.WaitGroup
+	graphCancel context.CancelFunc
+	graphDrops  uint64 // incremented on drop; exported via metric later
 }
 
-// NewIngestor constructs an Ingestor.
-func NewIngestor(meta postgres.MetaStore, vec qdrant.VectorStore, chunker *chunk.Chunker) *Ingestor {
-	return &Ingestor{meta: meta, vec: vec, chunker: chunker}
+// IngestorOptions configures optional ingestor wiring.
+type IngestorOptions struct {
+	Graph        graph.GraphStore // nil → graph.NopStore{}
+	Logger       *slog.Logger     // nil → slog.Default()
+	GraphWorkers int              // 0 → 4
+	GraphQueue   int              // 0 → 256
+}
+
+// NewIngestor constructs an Ingestor. Graph writes are dispatched to a bounded
+// worker pool; failures are logged and never block ingest.
+func NewIngestor(meta postgres.MetaStore, vec qdrant.VectorStore, chunker *chunk.Chunker, opts IngestorOptions) *Ingestor {
+	if opts.Graph == nil {
+		opts.Graph = graph.NopStore{}
+	}
+	if opts.Logger == nil {
+		opts.Logger = slog.Default()
+	}
+	if opts.GraphWorkers <= 0 {
+		opts.GraphWorkers = 4
+	}
+	if opts.GraphQueue <= 0 {
+		opts.GraphQueue = 256
+	}
+
+	poolCtx, cancel := context.WithCancel(context.Background())
+	ing := &Ingestor{
+		meta:        meta,
+		vec:         vec,
+		chunker:     chunker,
+		graph:       opts.Graph,
+		logger:      opts.Logger,
+		graphJobs:   make(chan func(context.Context), opts.GraphQueue),
+		graphCancel: cancel,
+	}
+
+	// Spin up workers.
+	for i := 0; i < opts.GraphWorkers; i++ {
+		ing.graphWG.Add(1)
+		go func() {
+			defer ing.graphWG.Done()
+			for {
+				select {
+				case <-poolCtx.Done():
+					return
+				case job, ok := <-ing.graphJobs:
+					if !ok {
+						return
+					}
+					// Each job gets its own 2s timeout but uses poolCtx so
+					// shutdown cancels in-flight work.
+					jctx, jcancel := context.WithTimeout(poolCtx, 2*time.Second)
+					job(jctx)
+					jcancel()
+				}
+			}
+		}()
+	}
+
+	return ing
+}
+
+// Close drains the graph worker pool. Call before process exit.
+// Blocks until either all queued jobs finish or ctx expires (whichever first).
+func (ing *Ingestor) Close(ctx context.Context) error {
+	close(ing.graphJobs)
+	done := make(chan struct{})
+	go func() {
+		ing.graphWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		ing.graphCancel()
+		return nil
+	case <-ctx.Done():
+		ing.graphCancel()
+		return ctx.Err()
+	}
+}
+
+// dispatchGraph enqueues a graph write. Drops + logs if queue is full.
+func (ing *Ingestor) dispatchGraph(name string, fn func(context.Context)) {
+	select {
+	case ing.graphJobs <- fn:
+	default:
+		ing.graphDrops++
+		ing.logger.Warn("graph: dispatch dropped (queue full)", "op", name)
+	}
 }
 
 // Store ingests content: chunks it, persists metadata, and upserts vectors.
@@ -132,6 +229,47 @@ func (ing *Ingestor) Store(ctx context.Context, input StoreInput) (*StoreResult,
 		for _, pc := range pgChunks {
 			_ = ing.meta.EnqueuePending(ctx, pc.ID)
 		}
+	}
+
+	// Best-effort: write chunks + Memory + OF edges to the graph.
+	// Fire-and-forget per memory; failures logged, never block ingest.
+	memNode := input.Source
+	for i, pc := range pgChunks {
+		node := graph.ChunkNode{
+			ID:        pc.ID,
+			MemoryID:  memoryID,
+			UserID:    userID,
+			Source:    memNode,
+			Ord:       i,
+			CreatedAt: now,
+		}
+		ing.dispatchGraph("write_chunk", func(ctx context.Context) {
+			if err := ing.graph.WriteChunkAndOf(ctx, node); err != nil {
+				ing.logger.Warn("graph: write chunk failed", "chunk_id", node.ID, "err", err)
+			}
+		})
+	}
+	if len(pgChunks) > 1 {
+		edges := make([]graph.SequentialEdge, 0, len(pgChunks)-1)
+		for i := 0; i < len(pgChunks)-1; i++ {
+			edges = append(edges, graph.SequentialEdge{
+				PrevID: pgChunks[i].ID,
+				NextID: pgChunks[i+1].ID,
+				UserID: userID,
+			})
+		}
+		ing.dispatchGraph("write_next_edges", func(ctx context.Context) {
+			// Brief delay so the chunk-write jobs above have time to land.
+			// The MERGE statements in WriteChunkAndOf are idempotent, so this
+			// is just a happy-path optimization. If the chunks aren't there
+			// yet, the MATCH in WriteSequentialEdges will return zero rows
+			// and nothing breaks.
+			time.Sleep(200 * time.Millisecond)
+			if err := ing.graph.WriteSequentialEdges(ctx, edges); err != nil {
+				ing.logger.Warn("graph: write sequential edges failed",
+					"memory_id", memoryID, "count", len(edges), "err", err)
+			}
+		})
 	}
 
 	return &StoreResult{

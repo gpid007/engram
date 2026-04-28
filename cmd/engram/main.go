@@ -21,6 +21,7 @@ import (
 	"github.com/gregdhill/engram/internal/rerank"
 	"github.com/gregdhill/engram/internal/store/postgres"
 	"github.com/gregdhill/engram/internal/store/qdrant"
+	neo4jstore "github.com/gregdhill/engram/internal/store/neo4j"
 )
 
 func main() {
@@ -144,11 +145,50 @@ func main() {
 		SimilarityThreshold: cfg.Chunking.SimilarityThreshold,
 	})
 
-	// 10. Build graph store (nop for now).
-	graphStore := graph.NopStore{}
+	// 10. Build graph store.
+	var graphStore graph.GraphStore = graph.NopStore{}
+	switch cfg.Graph.Provider {
+	case "", "none":
+		// keep nop
+	case "neo4j":
+		password := os.Getenv(cfg.Graph.PasswordEnv)
+		if password == "" {
+			slog.Warn("neo4j password env not set; falling back to nop graph",
+				"env", cfg.Graph.PasswordEnv)
+		} else {
+			ns, nerr := neo4jstore.New(ctx, neo4jstore.Config{
+				URI:      cfg.Graph.URI,
+				Username: cfg.Graph.Username,
+				Password: password,
+				Database: cfg.Graph.Database,
+				Timeout:  time.Duration(cfg.Graph.TimeoutMS) * time.Millisecond,
+			})
+			if nerr != nil {
+				slog.Warn("neo4j connect failed; falling back to nop graph", "err", nerr)
+			} else if serr := ns.EnsureSchema(ctx); serr != nil {
+				slog.Warn("neo4j schema setup failed; falling back to nop graph", "err", serr)
+				_ = ns.Close(ctx)
+			} else {
+				graphStore = ns
+				defer func() {
+					closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					if err := ns.Close(closeCtx); err != nil {
+						slog.Warn("neo4j close error", "err", err)
+					}
+				}()
+				slog.Info("neo4j graph store initialized", "uri", cfg.Graph.URI)
+			}
+		}
+	default:
+		slog.Warn("unknown graph.provider; falling back to nop", "provider", cfg.Graph.Provider)
+	}
 
 	// 11. Build ingestor.
-	ingestor := memory.NewIngestor(metaStore, vecStore, chunker)
+	ingestor := memory.NewIngestor(metaStore, vecStore, chunker, memory.IngestorOptions{
+		Graph:  graphStore,
+		Logger: slog.Default(),
+	})
 
 	// 12. Build retriever.
 	retriever := memory.NewRetriever(
@@ -228,6 +268,10 @@ func main() {
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	if err := ingestor.Close(shutCtx); err != nil {
+		slog.Warn("ingestor close error", "err", err)
+	}
 
 	if err := vecStore.Close(); err != nil {
 		slog.Warn("qdrant close error", "err", err)

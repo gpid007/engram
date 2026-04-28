@@ -53,6 +53,24 @@ services:
       OLLAMA_HOST: http://ollama:11434
     restart: "no"
 
+  neo4j:
+    image: neo4j:5.28-community
+    container_name: engram-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-engrampass}
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+    volumes:
+      - neo4jdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
   engram:
     build:
       context: ..
@@ -70,6 +88,11 @@ services:
       ENGRAM_META_DSN: postgres://engram:engram@postgres:5432/engram?sslmode=disable
       ENGRAM_VECTOR_ADDR: qdrant:6334
       ENGRAM_EMBEDDING_BASE_URL: http://ollama:11434
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-engrampass}
+      ENGRAM_GRAPH_PROVIDER: ${ENGRAM_GRAPH_PROVIDER:-none}
+      ENGRAM_GRAPH_URI: bolt://neo4j:7687
+      ENGRAM_GRAPH_USERNAME: neo4j
+      ENGRAM_GRAPH_PASSWORD_ENV: NEO4J_PASSWORD
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
       interval: 10s
@@ -80,3 +103,4 @@ volumes:
   pgdata:
   qdrantdata:
   ollamadata:
+  neo4jdata:

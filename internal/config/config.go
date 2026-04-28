@@ -81,6 +81,19 @@ type LoggingConfig struct {
 	Format string `yaml:"format"`
 }
 
+// GraphConfig holds graph store settings.
+type GraphConfig struct {
+	Provider         string  `yaml:"provider"`          // "neo4j" | "none" (default)
+	URI              string  `yaml:"uri"`               // bolt://host:7687
+	Username         string  `yaml:"username"`
+	PasswordEnv      string  `yaml:"password_env"`      // env var name (e.g. NEO4J_PASSWORD)
+	Database         string  `yaml:"database"`          // default "neo4j"
+	WriteSimilar     bool    `yaml:"write_similar"`     // default false (deferred to reconciler)
+	SimilarThreshold float64 `yaml:"similar_threshold"` // default 0.75
+	MaxExpand        int     `yaml:"max_expand"`        // default 10
+	TimeoutMS        int     `yaml:"timeout_ms"`        // default 2000
+}
+
 // Config is the root configuration struct.
 type Config struct {
 	Server    ServerConfig    `yaml:"server"`
@@ -91,6 +104,7 @@ type Config struct {
 	Rerank    RerankConfig    `yaml:"rerank"`
 	Chunking  ChunkingConfig  `yaml:"chunking"`
 	Logging   LoggingConfig   `yaml:"logging"`
+	Graph     GraphConfig     `yaml:"graph"`
 }
 
 // Defaults returns a Config populated with sensible defaults.
@@ -142,6 +156,13 @@ func Defaults() *Config {
 		Logging: LoggingConfig{
 			Level:  "info",
 			Format: "json",
+		},
+		Graph: GraphConfig{
+			Provider:         "none",
+			Database:         "neo4j",
+			SimilarThreshold: 0.75,
+			MaxExpand:        10,
+			TimeoutMS:        2000,
 		},
 	}
 }
@@ -252,6 +273,17 @@ func applyEnvOverrides(cfg *Config) {
 	// Logging
 	setStr("ENGRAM_LOGGING_LEVEL", &cfg.Logging.Level)
 	setStr("ENGRAM_LOGGING_FORMAT", &cfg.Logging.Format)
+
+	// Graph
+	setStr("ENGRAM_GRAPH_PROVIDER", &cfg.Graph.Provider)
+	setStr("ENGRAM_GRAPH_URI", &cfg.Graph.URI)
+	setStr("ENGRAM_GRAPH_USERNAME", &cfg.Graph.Username)
+	setStr("ENGRAM_GRAPH_PASSWORD_ENV", &cfg.Graph.PasswordEnv)
+	setStr("ENGRAM_GRAPH_DATABASE", &cfg.Graph.Database)
+	setBool("ENGRAM_GRAPH_WRITE_SIMILAR", &cfg.Graph.WriteSimilar)
+	setFloat("ENGRAM_GRAPH_SIMILAR_THRESHOLD", &cfg.Graph.SimilarThreshold)
+	setInt("ENGRAM_GRAPH_MAX_EXPAND", &cfg.Graph.MaxExpand)
+	setInt("ENGRAM_GRAPH_TIMEOUT_MS", &cfg.Graph.TimeoutMS)
 }
 
 var validRerankProviders = map[string]bool{
@@ -282,6 +314,24 @@ func validate(cfg *Config) error {
 	}
 	if !validRerankProviders[cfg.Rerank.Provider] {
 		errs = append(errs, fmt.Sprintf("rerank.provider %q is not valid; must be one of: crossenc, llm, remote, none", cfg.Rerank.Provider))
+	}
+
+	if cfg.Graph.Provider != "" && cfg.Graph.Provider != "none" {
+		if cfg.Graph.Provider != "neo4j" {
+			errs = append(errs, fmt.Sprintf("graph.provider %q must be one of: none, neo4j", cfg.Graph.Provider))
+		} else {
+			if strings.TrimSpace(cfg.Graph.URI) == "" {
+				errs = append(errs, "graph.uri must be set when provider=neo4j")
+			}
+			if strings.TrimSpace(cfg.Graph.Username) == "" {
+				errs = append(errs, "graph.username must be set when provider=neo4j")
+			}
+			if strings.TrimSpace(cfg.Graph.PasswordEnv) == "" {
+				errs = append(errs, "graph.password_env must be set when provider=neo4j")
+			} else if os.Getenv(cfg.Graph.PasswordEnv) == "" {
+				errs = append(errs, fmt.Sprintf("graph.password_env %q resolves to empty value; set it in the environment", cfg.Graph.PasswordEnv))
+			}
+		}
 	}
 
 	if len(errs) > 0 {

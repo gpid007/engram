@@ -64,6 +64,21 @@ jobs:
           - 6333:6333
           - 6334:6334
 
+      neo4j:
+        image: neo4j:5.28-community
+        env:
+          NEO4J_AUTH: neo4j/engrampass
+          NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "wget -qO- http://localhost:7474 >/dev/null"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 40s
+
     steps:
       - uses: actions/checkout@v4
 
@@ -76,9 +91,13 @@ jobs:
         run: |
           timeout 60 bash -c 'until nc -z localhost 5432; do sleep 1; done'
           timeout 60 bash -c 'until nc -z localhost 6334; do sleep 1; done'
+          timeout 120 bash -c 'until nc -z localhost 7687; do sleep 2; done'
 
       - name: Run integration tests
         run: go test -tags integration ./test/integration/... -v -timeout 300s
         env:
           POSTGRES_DSN: postgres://engram:engram@localhost:5432/engram?sslmode=disable
           QDRANT_ADDR: localhost:6334
+          NEO4J_TEST_URI: bolt://localhost:7687
+          NEO4J_TEST_USER: neo4j
+          NEO4J_TEST_PASS: engrampass

@@ -3,6 +3,9 @@ set -e
 
 export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
 
+# Neo4j credentials. Override in your shell to use a different password.
+export NEO4J_PASSWORD="${NEO4J_PASSWORD:-engrampass}"
+
 echo "Starting Engram locally..."
 echo ""
 

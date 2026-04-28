@@ -259,11 +259,74 @@ internal/fusion/           # RRF
 internal/rerank/           # crossenc | llm | remote
 internal/store/postgres/   # MetaStore + migrations
 internal/store/qdrant/     # VectorStore
+internal/store/neo4j/      # GraphStore: Neo4j adapter (optional)
 internal/graph/            # GraphStore interface + nop impl
 deploy/                    # Dockerfile, compose, init scripts
 test/integration/          # roundtrip suite
 test/eval/                 # recall@k fixture
 ```
+
+## Architecture
+
+Engram orchestrates a hybrid-retrieval pipeline across specialized backends:
+
+```
+┌────────────────────────────────────────────────────────┐
+│ Transports:  MCP (stdio)  +  HTTP (JSON over POST)     │
+└──────────────────────┬─────────────────────────────────┘
+                       │ shared handlers
+┌──────────────────────▼─────────────────────────────────┐
+│ Memory Service (internal/memory)                       │
+│   Ingestor   ·   Retriever   ·   Reconciler            │
+└──┬────────────┬───────────┬────────────┬───────────────┘
+   │            │           │            │
+   │            │           │            │
+   ▼            ▼           ▼            ▼
+┌──────┐   ┌──────────┐  ┌────────┐  ┌──────────────────┐
+│Qdrant│   │ Postgres │  │ Neo4j  │  │ Ollama           │
+│      │   │          │  │        │  │  embed + LLM     │
+│vecs  │   │metadata, │  │chunk & │  │  rerank          │
+│cosine│   │tsvector, │  │memory  │  └──────────────────┘
+│search│   │BM25,     │  │graph   │       │
+│      │   │pending_  │  │NEXT,   │       │ optional:
+└──────┘   │vectors   │  │SIMILAR,│       │  cross-encoder
+           │reconcile │  │OF      │       │  ONNX
+           └──────────┘  └────────┘       │  remote rerank API
+
+Ingest write paths:
+  Postgres (canonical)  ── must succeed
+  Qdrant upsert         ── failure → pending_vectors (reconciled)
+  Neo4j (async, optional) ── best-effort; graph error ≠ ingest failure
+
+Retrieve read paths:
+  1. Embed query via Ollama
+  2. Parallel fanout: Qdrant.Search + Postgres.SearchBM25
+  3. RRF fusion → top-k
+  4. Optional: Neo4j.ExpandRelated via NEXT|SIMILAR edges (depth=1)
+  5. Reranker (crossenc / llm / remote / none)
+  6. Return top-final_k
+```
+
+### Graph-based Memory Expansion (Optional)
+
+If you enable Neo4j, Engram builds a semantic relationship graph of chunks and memories:
+
+- **Sequential edges** (`NEXT`): chunks within the same memory, by order.
+- **Similarity edges** (`SIMILAR`): cross-memory chunks with cosine similarity ≥ threshold.
+- **Expansion on retrieve**: after fusion ranking, walk the graph (depth 1) to find related chunks.
+
+This surfaces implicit connections between memories. For example, retrieving "What is the mitochondria?" may expand to include nearby notes on cell biology if they share SIMILAR edges.
+
+To enable Neo4j in local dev:
+
+```bash
+export NEO4J_PASSWORD=engrampass
+docker compose -f deploy/docker-compose.yml up
+```
+
+Then set `ENGRAM_GRAPH_PROVIDER=neo4j` in your config or environment. If Neo4j is unavailable, Engram logs a warning and continues with vector + BM25 retrieval only.
+
+For details on schema, edge types, and failure semantics, see [`NEO4J.md`](./NEO4J.md).
 
 ## License
 

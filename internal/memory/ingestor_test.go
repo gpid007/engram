@@ -98,7 +98,7 @@ func newTestIngestor(meta postgres.MetaStore, vec qdrant.VectorStore) *Ingestor 
 		MinTokens:           1,
 		SimilarityThreshold: 2.0,
 	})
-	return NewIngestor(meta, vec, chunker)
+	return NewIngestor(meta, vec, chunker, IngestorOptions{})
 }
 
 func sentences(n int) string {

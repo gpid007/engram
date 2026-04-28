@@ -48,3 +48,16 @@ chunking:
 logging:
   level: info
   format: json
+
+# Graph store (optional). Set provider: neo4j to enable graph expansion.
+graph:
+  provider: none
+  # provider: neo4j
+  # uri: bolt://localhost:7687
+  # username: neo4j
+  # password_env: NEO4J_PASSWORD
+  # database: neo4j
+  # write_similar: false
+  # similar_threshold: 0.75
+  # max_expand: 10
+  # timeout_ms: 2000
