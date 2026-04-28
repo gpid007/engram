@@ -253,7 +253,7 @@ func buildStack(t *testing.T, dsn, qaddr, ollamaURL string, retCfg memory.Retrie
 		SimilarityThreshold: 0.6,
 	})
 
-	ing := memory.NewIngestor(meta, vec, chunker)
+	ing := memory.NewIngestor(meta, vec, chunker, memory.IngestorOptions{})
 	ret := memory.NewRetriever(meta, vec, embedder, nil, graph.NopStore{}, retCfg)
 
 	return &stack{
