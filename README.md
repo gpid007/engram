@@ -14,17 +14,19 @@ handlers serve both an MCP stdio transport and an HTTP+JSON API.
 git clone https://github.com/gregdhill/engram.git
 cd engram
 
-# Build binary with local ONNX inference (one-time, ~5 min)
+# 1. Build binary with local ONNX inference (one-time, ~5 min)
 make build-onnx
 
-# Verify ONNX embedder works
-./test_onnx_local.sh
+# 2. Start full backend stack (Qdrant, Postgres, Neo4j)
+bash start-stack.sh
+# Waits for services to be ready on localhost:5432, 6333, 7474
 
-# Start full backend stack (Qdrant, Postgres, Neo4j)
-docker compose -f deploy/docker-compose.yml up -d
+# 3. Start Engram binary in another terminal
+bash run-local.sh
+# Waits for dependencies, then starts HTTP server on :8080
 ```
 
-The `bin/engram` binary now uses local ONNX inference (5–10x faster than Ollama).
+The `bin/engram` binary uses local ONNX inference (2–5ms per embedding vs. 50–100ms for Ollama).
 Models are cached in `models/nomic-embed-text-v1.5/` (~520 MB, downloaded once).
 
 **Test the API:**
@@ -33,25 +35,15 @@ Models are cached in `models/nomic-embed-text-v1.5/` (~520 MB, downloaded once).
 # Store a memory
 curl -s -X POST http://localhost:8080/v1/memories \
   -H "Content-Type: application/json" \
-  -d '{"content":"The mitochondria is the powerhouse of the cell.","source":"biology"}' | jq .
+  -d '{"user_id":"greg","content":"The mitochondria is the powerhouse of the cell.","source":"biology","metadata":{"tags":["biology"]}}' | jq .MemoryID
 
 # Retrieve context
 curl -s -X POST http://localhost:8080/v1/retrieve \
   -H "Content-Type: application/json" \
-  -d '{"query":"cell energy","k":3}' | jq .
+  -d '{"user_id":"greg","query":"cell energy","k":3}' | jq '.Results | length'
 ```
 
-## Quickstart (Docker with Ollama)
 
-```bash
-git clone https://github.com/gregdhill/engram.git
-cd engram
-docker compose -f deploy/docker-compose.yml up
-```
-
-First boot pulls the Ollama models (`nomic-embed-text`, `llama3.2:1b`) and
-takes ~2 minutes. The `init-models` service exits successfully once both are
-cached; `engram` waits on it.
 
 ## MCP Integration
 
@@ -93,23 +85,6 @@ ctrl+p → "restart MCP server" or restart OpenCode entirely
 
 Now OpenCode's agents can use `store_memory` and `retrieve_context` tools to persist and
 recall memory with local ONNX inference.
-
-### OpenCode — Docker Container (Legacy)
-
-If you prefer containerized Ollama embeddings instead:
-
-```json
-{
-  "mcp": {
-    "engram": {
-      "type": "local",
-      "command": ["docker", "exec", "-i", "engram-engram-1", "/engram", "--mcp"]
-    }
-  }
-}
-```
-
-Requires `docker compose up -d` with the Ollama image.
 
 ### Claude Desktop (`claude_desktop_config.json`)
 

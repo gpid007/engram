@@ -33,7 +33,7 @@ store() {
   }
 
   local id
-  id=$(echo "$resp" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("memory_id","?")[:8])' 2>/dev/null || echo "?")
+  id=$(echo "$resp" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print((d.get("MemoryID") or d.get("memory_id","?"))[:8])' 2>/dev/null || echo "?")
   echo "  stored [$id...]: ${content:0:60}"
 }
 
