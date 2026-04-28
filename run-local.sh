@@ -6,6 +6,9 @@ export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock
 # Neo4j credentials. Override in your shell to use a different password.
 export NEO4J_PASSWORD="${NEO4J_PASSWORD:-engrampass}"
 
+# onnxruntime shared library — auto-detected by the binary, but can override here.
+# export ENGRAM_EMBEDDING_LIB_PATH=/opt/homebrew/lib/libonnxruntime.dylib
+
 echo "Starting Engram locally (ONNX embedding mode)..."
 echo ""
 

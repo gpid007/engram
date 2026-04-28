@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -73,6 +75,14 @@ func NewONNXEmbedder(cfg ONNXConfig) (*ONNXEmbedder, error) {
 		return nil, err
 	}
 
+	// Resolve and set the onnxruntime shared library path before initialising.
+	libPath, err := resolveONNXLib(cfg.LibPath)
+	if err != nil {
+		tok.close()
+		return nil, fmt.Errorf("onnx: locate shared library: %w", err)
+	}
+	ort.SetSharedLibraryPath(libPath)
+
 	// Initialise ONNX runtime (idempotent).
 	if !ort.IsInitialized() {
 		if err := ort.InitializeEnvironment(); err != nil {
@@ -82,7 +92,8 @@ func NewONNXEmbedder(cfg ONNXConfig) (*ONNXEmbedder, error) {
 	}
 
 	// nomic-embed-text-v1.5 ONNX graph inputs/outputs.
-	inputNames := []string{"input_ids", "attention_mask"}
+	// token_type_ids is required by the graph (all-zeros for single-sequence inputs).
+	inputNames := []string{"input_ids", "attention_mask", "token_type_ids"}
 	outputNames := []string{"last_hidden_state"}
 
 	session, err := ort.NewDynamicAdvancedSession(modelPath, inputNames, outputNames, nil)
@@ -209,6 +220,14 @@ func (e *ONNXEmbedder) embedRaw(ctx context.Context, texts []string) ([][]float3
 	}
 	defer inMask.Destroy()
 
+	// token_type_ids: all zeros (single-sequence, no segment B).
+	typeData := make([]int64, batchSize*seqLen)
+	inTypeIDs, err := ort.NewTensor(shape, typeData)
+	if err != nil {
+		return nil, fmt.Errorf("onnx: token_type_ids tensor: %w", err)
+	}
+	defer inTypeIDs.Destroy()
+
 	// Output: last_hidden_state [batch, seqLen, hidden].
 	outHidden, err := ort.NewEmptyTensor[float32](ort.NewShape(int64(batchSize), int64(seqLen), int64(e.cfg.Dim)))
 	if err != nil {
@@ -223,7 +242,7 @@ func (e *ONNXEmbedder) embedRaw(ctx context.Context, texts []string) ([][]float3
 		return nil, fmt.Errorf("onnx: context cancelled before inference: %w", err)
 	}
 	runErr := e.session.Run(
-		[]ort.ArbitraryTensor{inIDs, inMask},
+		[]ort.ArbitraryTensor{inIDs, inMask, inTypeIDs},
 		[]ort.ArbitraryTensor{outHidden},
 	)
 	e.mu.Unlock()
@@ -274,4 +293,76 @@ func (e *ONNXEmbedder) embedRaw(ctx context.Context, texts []string) ([][]float3
 	}
 
 	return result, nil
+}
+
+// resolveONNXLib returns the path to the onnxruntime shared library.
+// Resolution order:
+//  1. Explicit cfg.LibPath (from config or ENGRAM_EMBEDDING_LIB_PATH env var)
+//  2. Standard system locations (e.g. from `brew install onnxruntime`)
+//  3. The test_data/ directory bundled with the yalue/onnxruntime_go module
+func resolveONNXLib(explicit string) (string, error) {
+	if explicit != "" {
+		if _, err := os.Stat(explicit); err != nil {
+			return "", fmt.Errorf("lib_path %q not found: %w", explicit, err)
+		}
+		return explicit, nil
+	}
+
+	// Platform-specific candidates in standard locations.
+	var systemCandidates []string
+	switch runtime.GOOS {
+	case "darwin":
+		systemCandidates = []string{
+			"/opt/homebrew/lib/libonnxruntime.dylib",
+			"/usr/local/lib/libonnxruntime.dylib",
+		}
+	case "linux":
+		systemCandidates = []string{
+			"/usr/lib/libonnxruntime.so",
+			"/usr/local/lib/libonnxruntime.so",
+			"/usr/lib/x86_64-linux-gnu/libonnxruntime.so",
+			"/usr/lib/aarch64-linux-gnu/libonnxruntime.so",
+		}
+	}
+	for _, p := range systemCandidates {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	// Fall back to the library bundled with the yalue/onnxruntime_go module.
+	modDir, err := onnxModuleDir()
+	if err == nil {
+		var libName string
+		switch {
+		case runtime.GOOS == "darwin" && runtime.GOARCH == "arm64":
+			libName = "onnxruntime_arm64.dylib"
+		case runtime.GOOS == "darwin":
+			libName = "onnxruntime.dylib"
+		case runtime.GOARCH == "arm64":
+			libName = "onnxruntime_arm64.so"
+		default:
+			libName = "onnxruntime.so"
+		}
+		candidate := filepath.Join(modDir, "test_data", libName)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+	}
+
+	return "", fmt.Errorf(
+		"onnxruntime shared library not found; install via `brew install onnxruntime` "+
+			"or set lib_path / ENGRAM_EMBEDDING_LIB_PATH to the library path",
+	)
+}
+
+// onnxModuleDir returns the on-disk directory of the yalue/onnxruntime_go module
+// by asking `go list`. This works in development; in a deployed binary the
+// module cache may not be present, but the explicit lib_path takes over.
+func onnxModuleDir() (string, error) {
+	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/yalue/onnxruntime_go").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }

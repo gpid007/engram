@@ -26,6 +26,7 @@ type EmbeddingConfig struct {
 	TimeoutMS int    `yaml:"timeout_ms"`
 	Retries   int    `yaml:"retries"`
 	ModelDir  string `yaml:"model_dir"`  // ONNX: directory containing model.onnx and tokenizer.json
+	LibPath   string `yaml:"lib_path"`   // ONNX: path to onnxruntime shared library; auto-detected if empty
 	MaxSeqLen int    `yaml:"max_seq_len"` // ONNX: max token sequence length (default 8192)
 }
 
@@ -239,6 +240,7 @@ func applyEnvOverrides(cfg *Config) {
 	setInt("ENGRAM_EMBEDDING_TIMEOUT_MS", &cfg.Embedding.TimeoutMS)
 	setInt("ENGRAM_EMBEDDING_RETRIES", &cfg.Embedding.Retries)
 	setStr("ENGRAM_EMBEDDING_MODEL_DIR", &cfg.Embedding.ModelDir)
+	setStr("ENGRAM_EMBEDDING_LIB_PATH", &cfg.Embedding.LibPath)
 	setInt("ENGRAM_EMBEDDING_MAX_SEQ_LEN", &cfg.Embedding.MaxSeqLen)
 
 	// Vector

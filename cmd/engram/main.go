@@ -101,6 +101,7 @@ func main() {
 	if cfg.Embedding.Provider == "onnx" {
 		onnxEmb, onnxErr := embed.NewONNXEmbedder(embed.ONNXConfig{
 			ModelDir:  cfg.Embedding.ModelDir,
+			LibPath:   cfg.Embedding.LibPath,
 			MaxSeqLen: cfg.Embedding.MaxSeqLen,
 			Dim:       cfg.Embedding.Dim,
 			BatchSize: cfg.Embedding.Batch,

@@ -1,6 +1,9 @@
 TOKENIZERS_BUILD_DIR ?= $(CURDIR)/.tokenizers-build
 TOKENIZERS_MODULE    := $(shell go env GOPATH)/pkg/mod/github.com/daulet/tokenizers@$(shell go list -m -f '{{.Version}}' github.com/daulet/tokenizers 2>/dev/null)
 
+# Ensure ~/.cargo/bin is on PATH for non-interactive shells (rustup installs here).
+export PATH := $(HOME)/.cargo/bin:$(PATH)
+
 .PHONY: build build-onnx libtokenizers test lint up down
 
 build:
