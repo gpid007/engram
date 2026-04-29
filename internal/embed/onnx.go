@@ -192,12 +192,18 @@ func (e *ONNXEmbedder) embedRaw(ctx context.Context, texts []string) ([][]float3
 	}
 
 	batchSize := len(texts)
-	seqLen := e.cfg.MaxSeqLen
 
-	// Tokenize.
-	flatIDs, flatMask, err := e.tokenizer.encodeBatch(texts, seqLen)
+	// Tokenize — encodeBatch returns tensors sized to the actual max token
+	// length in this batch, not the global maxSeqLen. This is the key
+	// optimisation: a 5-word query uses ~10 positions, not 8192.
+	flatIDs, flatMask, err := e.tokenizer.encodeBatch(texts, e.cfg.MaxSeqLen)
 	if err != nil {
 		return nil, fmt.Errorf("onnx: tokenize: %w", err)
+	}
+	// Infer actual seqLen from the returned tensor size.
+	seqLen := len(flatIDs) / batchSize
+	if seqLen == 0 {
+		seqLen = 1
 	}
 
 	// Build input tensors: [batch, seqLen].

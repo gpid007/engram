@@ -57,33 +57,36 @@ type RetrieveRequest struct {
 }
 
 // RetrieveResult is one result from retrieval.
+// Note: the API returns PascalCase JSON keys.
 type RetrieveResult struct {
-	MemoryID  string  `json:"memory_id"`
-	ChunkID   string  `json:"chunk_id"`
-	Content   string  `json:"content"`
-	Score     float64 `json:"score"`
-	Source    string  `json:"source"`
-	CreatedAt string  `json:"created_at"`
+	MemoryID  string  `json:"MemoryID"`
+	ChunkID   string  `json:"ChunkID"`
+	Content   string  `json:"Content"`
+	Score     float64 `json:"Score"`
+	Source    string  `json:"Source"`
+	CreatedAt string  `json:"CreatedAt"`
 }
 
 // RetrieveStats holds retrieval timing stats.
 type RetrieveStats struct {
-	TotalMS int `json:"total_ms"`
+	TotalMs int `json:"TotalMs"`
 }
 
 // RetrieveResponse is the response from POST /v1/retrieve.
+// Note: the API returns PascalCase JSON keys.
 type RetrieveResponse struct {
-	Results []RetrieveResult `json:"results"`
-	Stats   RetrieveStats    `json:"stats"`
+	Results []RetrieveResult `json:"Results"`
+	Stats   RetrieveStats    `json:"Stats"`
 }
 
 // UserStateResponse is the response from GET /v1/users/{id}/state.
+// Note: the API returns PascalCase JSON keys.
 type UserStateResponse struct {
-	MemoryCount int      `json:"memory_count"`
-	ChunkCount  int      `json:"chunk_count"`
-	FirstMemory string   `json:"first_memory"`
-	LastMemory  string   `json:"last_memory"`
-	TopSources  []string `json:"top_sources"`
+	MemoryCount int      `json:"MemoryCount"`
+	ChunkCount  int      `json:"ChunkCount"`
+	FirstMemory string   `json:"FirstMemory"`
+	LastMemory  string   `json:"LastMemory"`
+	TopSources  []string `json:"TopSources"`
 }
 
 // Store stores a single fact in Engram.
