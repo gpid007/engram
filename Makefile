@@ -4,7 +4,7 @@ TOKENIZERS_MODULE    := $(shell go env GOPATH)/pkg/mod/github.com/daulet/tokeniz
 # Ensure ~/.cargo/bin is on PATH for non-interactive shells (rustup installs here).
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
-.PHONY: build build-onnx libtokenizers test lint up down
+.PHONY: build build-onnx libtokenizers test lint up down daemon-install daemon-uninstall
 
 build:
 	go build ./...
@@ -28,3 +28,9 @@ up:
 
 down:
 	docker compose -f deploy/docker-compose.yml down
+
+daemon-install:
+	bash scripts/install-daemon.sh
+
+daemon-uninstall:
+	bash scripts/uninstall-daemon.sh

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.engram</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/greg/git/engram/bin/engram</string>
+        <string>-config</string>
+        <string>/Users/greg/git/engram/engram.local.yaml</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/usr/local/var/log/engram/engram.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/engram/engram.err.log</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/greg/git/engram</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NEO4J_PASSWORD</key>
+        <string></string>
+    </dict>
+</dict>
+</plist>

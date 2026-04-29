@@ -165,6 +165,53 @@ instructions (see `docs/global-agents.md`). This tells every model to call
 
 Same setup as OpenCode — uses local ONNX binary.
 
+## Daemonizing Engram
+
+Run Engram as a persistent background service that survives shell close and starts automatically on login.
+
+### What gets daemonized
+
+| Component | Method | Survives reboot |
+|---|---|---|
+| Postgres, Qdrant, Neo4j | Docker `restart: unless-stopped` | Yes (if Docker starts on login) |
+| Engram binary (HTTP) | launchd `KeepAlive: true` | Yes |
+
+> **Note:** OpenCode's MCP connection (`type: local`) spawns its own engram process for stdio. The daemon covers the HTTP API only.
+
+### Install
+
+```bash
+make daemon-install
+```
+
+This will:
+1. Copy `deploy/ai.engram.plist` to `~/Library/LaunchAgents/`
+2. Load it with `launchctl` (starts on login, restarts on crash)
+3. Start the Docker backend stack
+4. Wait for Postgres and Qdrant to be ready
+
+### Uninstall
+
+```bash
+make daemon-uninstall
+```
+
+### Logs
+
+```bash
+tail -f /usr/local/var/log/engram/engram.out.log
+tail -f /usr/local/var/log/engram/engram.err.log
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Daemon not starting | `launchctl list \| grep engram` — check exit code |
+| Binary not found | Run `make build-onnx` first |
+| Backends not ready | `docker compose -f deploy/docker-compose.yml ps` |
+| Restart daemon | `launchctl unload ~/Library/LaunchAgents/ai.engram.plist && launchctl load ~/Library/LaunchAgents/ai.engram.plist` |
+
 ## HTTP API
 
 All routes accept and return JSON. Errors use a uniform envelope:
