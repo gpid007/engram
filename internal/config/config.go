@@ -97,6 +97,15 @@ type GraphConfig struct {
 	TimeoutMS        int     `yaml:"timeout_ms"`        // default 2000
 }
 
+// CLIConfig holds settings for the engram CLI subcommands (put/get/status).
+type CLIConfig struct {
+	BaseURL        string `yaml:"base_url"`
+	UserID         string `yaml:"user_id"`
+	ParseModel     string `yaml:"parse_model"`
+	ParseBaseURL   string `yaml:"parse_base_url"`
+	ParseTimeoutMS int    `yaml:"parse_timeout_ms"`
+}
+
 // Config is the root configuration struct.
 type Config struct {
 	Server    ServerConfig    `yaml:"server"`
@@ -108,6 +117,7 @@ type Config struct {
 	Chunking  ChunkingConfig  `yaml:"chunking"`
 	Logging   LoggingConfig   `yaml:"logging"`
 	Graph     GraphConfig     `yaml:"graph"`
+	CLI       CLIConfig       `yaml:"cli"`
 }
 
 // Defaults returns a Config populated with sensible defaults.
@@ -166,6 +176,13 @@ func Defaults() *Config {
 			SimilarThreshold: 0.75,
 			MaxExpand:        10,
 			TimeoutMS:        2000,
+		},
+		CLI: CLIConfig{
+			BaseURL:        "http://localhost:8080",
+			UserID:         "greg",
+			ParseModel:     "llama3.2:1b",
+			ParseBaseURL:   "http://localhost:11434",
+			ParseTimeoutMS: 10000,
 		},
 	}
 }

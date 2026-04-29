@@ -61,3 +61,10 @@ graph:
   similar_threshold: 0.75
   max_expand: 10
   timeout_ms: 2000
+
+cli:
+  base_url: http://localhost:8080
+  user_id: greg
+  parse_model: llama3.2:1b
+  parse_base_url: http://localhost:11434
+  parse_timeout_ms: 10000

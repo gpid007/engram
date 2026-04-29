@@ -165,6 +165,55 @@ instructions (see `docs/global-agents.md`). This tells every model to call
 
 Same setup as OpenCode — uses local ONNX binary.
 
+## CLI Usage
+
+The `engram` binary doubles as a CLI client when called with a subcommand.
+The daemon must be running (`make daemon-install`).
+
+### put — store facts
+
+Accepts raw text. A local Ollama model (`llama3.2:1b`) parses it into structured
+facts, splits by entity, and stores each separately. If Ollama is unavailable, the
+raw text is stored as a single untagged fact.
+
+```bash
+engram -config engram.local.yaml put "Zita and Karim are a couple, Karim born 1981"
+# stored: Zita and Karim are a couple [people relationship zita karim] id=abc12345
+# stored: Karim, born 1981 [people person karim] id=def67890
+```
+
+### get — retrieve memories
+
+```bash
+engram -config engram.local.yaml get "Zita relationship"
+# 0.912  Zita and Karim are a couple
+# 0.871  Zita, born 1985-07-25
+# retrieved 2 results in 84ms
+```
+
+### status — memory count and server health
+
+```bash
+engram -config engram.local.yaml status
+# memories: 42  chunks: 68
+# last:     2026-04-29T10:23:11Z
+# sources:  conversation, notes
+```
+
+### Extending the CLI
+
+The CLI is structured for easy extension:
+
+| File | Purpose |
+|---|---|
+| `internal/cli/client.go` | HTTP client — add new API endpoints here |
+| `internal/cli/parse.go` | `Parser` interface — swap in a different model or remote API |
+| `internal/cli/commands.go` | Command handlers — add new subcommands here |
+| `cmd/engram/main.go` | `runCLI()` dispatch — wire new subcommands into the switch |
+
+To add a new subcommand: implement a `RunXxx` function in `commands.go`, add a case
+to the switch in `runCLI()`, done.
+
 ## Daemonizing Engram
 
 Run Engram as a persistent background service that survives shell close and starts automatically on login.

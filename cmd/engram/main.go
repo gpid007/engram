@@ -8,10 +8,12 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gregdhill/engram/internal/chunk"
+	"github.com/gregdhill/engram/internal/cli"
 	"github.com/gregdhill/engram/internal/config"
 	"github.com/gregdhill/engram/internal/embed"
 	"github.com/gregdhill/engram/internal/graph"
@@ -19,9 +21,9 @@ import (
 	"github.com/gregdhill/engram/internal/mcp"
 	"github.com/gregdhill/engram/internal/memory"
 	"github.com/gregdhill/engram/internal/rerank"
+	neo4jstore "github.com/gregdhill/engram/internal/store/neo4j"
 	"github.com/gregdhill/engram/internal/store/postgres"
 	"github.com/gregdhill/engram/internal/store/qdrant"
-	neo4jstore "github.com/gregdhill/engram/internal/store/neo4j"
 )
 
 func main() {
@@ -46,6 +48,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "engram: load config: %v\n", err)
 		os.Exit(1)
+	}
+
+	// 3. Subcommand dispatch — runs before any server infrastructure is started.
+	// Usage: engram [flags] <put|get|status> [args...]
+	if args := flag.Args(); len(args) > 0 {
+		runCLI(cfg, args)
+		return
 	}
 
 	// 3. Set up slog logger.
@@ -301,6 +310,46 @@ func main() {
 		slog.Warn("postgres close error", "err", err)
 	}
 	_ = shutCtx // timeout context available for future blocking shutdown steps
+}
+
+// runCLI dispatches put/get/status subcommands against the running Engram HTTP server.
+// It does not start Postgres, Qdrant, or any server infrastructure.
+func runCLI(cfg *config.Config, args []string) {
+	parseTimeout := time.Duration(cfg.CLI.ParseTimeoutMS) * time.Millisecond
+	storeTimeout := 15 * time.Second
+	client := cli.NewClient(cfg.CLI.BaseURL, cfg.CLI.UserID, storeTimeout)
+	parser := cli.NewOllamaParser(cfg.CLI.ParseBaseURL, cfg.CLI.ParseModel, cfg.CLI.UserID, parseTimeout)
+	rc := cli.RunConfig{Client: client, Parser: parser, UserID: cfg.CLI.UserID}
+	ctx := context.Background()
+
+	switch args[0] {
+	case "put":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "usage: engram put <text>")
+			os.Exit(1)
+		}
+		if err := cli.RunPut(ctx, rc, strings.Join(args[1:], " ")); err != nil {
+			fmt.Fprintf(os.Stderr, "put: %v\n", err)
+			os.Exit(1)
+		}
+	case "get":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "usage: engram get <query>")
+			os.Exit(1)
+		}
+		if err := cli.RunGet(ctx, rc, strings.Join(args[1:], " "), 5); err != nil {
+			fmt.Fprintf(os.Stderr, "get: %v\n", err)
+			os.Exit(1)
+		}
+	case "status":
+		if err := cli.RunStatus(ctx, rc); err != nil {
+			fmt.Fprintf(os.Stderr, "status: %v\n", err)
+			os.Exit(1)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\nusage: engram <put|get|status> [args...]\n", args[0])
+		os.Exit(1)
+	}
 }
 
 // min returns the smaller of a and b.
