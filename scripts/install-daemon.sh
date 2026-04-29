@@ -61,9 +61,14 @@ done
 # Symlink binary to ~/bin for PATH access
 mkdir -p "$HOME/bin"
 ln -sf "$BINARY" "$HOME/bin/engram"
-if ! grep -q 'HOME/bin' "$HOME/.zshenv" 2>/dev/null; then
-  echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.zshenv"
-fi
+for rc in "$HOME/.zshenv" "$HOME/.bashrc"; do
+  if ! grep -q 'HOME/bin' "$rc" 2>/dev/null; then
+    echo 'export PATH="$HOME/bin:$PATH"' >> "$rc"
+  fi
+  if ! grep -q 'ENGRAM_CONFIG' "$rc" 2>/dev/null; then
+    echo "export ENGRAM_CONFIG=\"$REPO/engram.local.yaml\"" >> "$rc"
+  fi
+done
 
 echo "Engram daemon installed. HTTP: http://localhost:8080"
 echo "Binary available as: engram (restart shell if not found)"
