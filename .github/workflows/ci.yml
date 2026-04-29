@@ -1,5 +1,22 @@
 name: CI
 
+# Branching strategy
+# ──────────────────
+# All work happens on short-lived feature branches (feat/*, fix/*, etc).
+# Direct pushes to main are blocked by branch protection.
+#
+# Workflow:
+#   1. Create a feature branch:  git checkout -b feat/my-feature
+#   2. Push and open a PR:       git push origin feat/my-feature
+#   3. CI runs unit + integration tests on the PR
+#   4. When both checks pass, the auto-merge job below enables GitHub
+#      auto-merge (rebase strategy). GitHub merges automatically once
+#      all required status checks are green — no manual merge needed.
+#   5. The feature branch is deleted automatically after merge.
+#
+# Locally you can also use:  ./scripts/merge-to-main.sh
+# which rebases, runs tests via the pre-push hook, then ff-merges to main.
+
 on:
   push:
     branches: ["**"]
@@ -101,3 +118,18 @@ jobs:
           NEO4J_TEST_URI: bolt://localhost:7687
           NEO4J_TEST_USER: neo4j
           NEO4J_TEST_PASS: engrampass
+
+  auto-merge:
+    name: Auto-merge to main
+    # Only runs on PRs targeting main, after both test jobs pass
+    needs: [unit, integration]
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Enable auto-merge (rebase)
+        run: gh pr merge "${{ github.event.pull_request.number }}" --auto --rebase
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
