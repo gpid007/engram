@@ -1,35 +1,17 @@
 #!/usr/bin/env bash
-# Git pre-commit hook: enforce code formatting and linting
-
+# pre-commit: format and vet staged Go files only
 set -e
 
-# Allow emergency bypass
-if [ -n "${GIT_SKIP_HOOKS}" ]; then
-  echo "⚠️  pre-commit hook skipped (GIT_SKIP_HOOKS=1)"
-  exit 0
-fi
+[ -n "${GIT_SKIP_HOOKS}" ] && exit 0
 
-echo "🔍 Running pre-commit checks..."
+STAGED_GO=$(git diff --cached --name-only | grep '\.go$' || true)
+[ -z "$STAGED_GO" ] && exit 0
 
-# Check Go formatting
-if ! go fmt ./...; then
-  echo "❌ Error: Go files are not formatted. Run 'go fmt ./...'"
-  exit 1
-fi
+echo "Running go fmt..."
+go fmt ./...
+git add $(git diff --cached --name-only | grep '\.go$' || true)
 
-# Check Go linting
-if ! go vet ./...; then
-  echo "❌ Error: Linting errors found. Fix them and try again."
-  exit 1
-fi
+echo "Running go vet..."
+go vet ./...
 
-# Warn if CHANGELOG.md not updated when .go files changed
-CHANGED_GO_FILES=$(git diff --cached --name-only 2>/dev/null | grep '\.go$' || true)
-if [ -n "$CHANGED_GO_FILES" ]; then
-  if ! git diff --cached --name-only | grep -q 'CHANGELOG.md'; then
-    echo "⚠️  Warning: CHANGELOG.md not updated. Consider adding an entry."
-  fi
-fi
-
-echo "✅ All checks passed!"
 exit 0

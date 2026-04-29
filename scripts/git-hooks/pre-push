@@ -1,30 +1,35 @@
 #!/usr/bin/env bash
-# Git pre-push hook: prevent direct pushes to protected branches
+# pre-push: run QA tests before any push that touches main
+set -e
 
-# Allow bypass
-if [ "$GIT_SKIP_HOOKS" = "1" ]; then
-  exit 0
-fi
+[ "${GIT_SKIP_HOOKS}" = "1" ] && exit 0
 
-# Read remote and refspec from stdin
-# Format: <remote> <remote-url> <local-ref> <local-sha> <remote-ref> <remote-sha>
+REMOTE="$1"
+REMOTE_URL="$2"
+
 while read LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
-  # Extract branch name from refs/heads/branch-name
-  BRANCH=$(echo "$LOCAL_REF" | sed 's|refs/heads/||')
+  BRANCH="${REMOTE_REF#refs/heads/}"
 
-  # Block direct pushes to protected branches
-  if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "develop" ]; then
-    echo "❌ Error: Cannot push directly to '$BRANCH'"
-    echo ""
-    echo "Please create a pull request instead:"
-    echo "  1. Push your feature branch: git push origin $BRANCH"
-    echo "  2. Open a PR on GitHub"
-    echo ""
-    echo "Protected branches require review before merge."
-    echo ""
-    echo "To bypass (not recommended): GIT_SKIP_HOOKS=1 git push"
+  # Only gate pushes that land on main
+  [ "$BRANCH" != "main" ] && continue
+
+  # Reject direct pushes from non-feature branches
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$CURRENT_BRANCH" = "main" ]; then
+    echo "Direct push to main is not allowed."
+    echo "Create a feature branch: git checkout -b feat/your-feature"
+    echo "Then push it and merge via: scripts/merge-to-main.sh"
+    echo "Bypass: GIT_SKIP_HOOKS=1 git push"
     exit 1
   fi
+
+  echo "Running QA tests before push to main..."
+  if ! go test ./... -count=1 -timeout 120s; then
+    echo "Tests failed. Push to main blocked."
+    exit 1
+  fi
+
+  echo "QA passed — pushing to main."
 done
 
 exit 0

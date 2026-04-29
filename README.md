@@ -70,19 +70,52 @@ See [BRANCHING.md](./BRANCHING.md) for development workflow.
 
 ## Development Workflow
 
-Install git hooks for automated code quality checks:
+### Setup (once after cloning)
 
 ```bash
 bash scripts/install-hooks.sh
 ```
 
-This enforces:
-- ✅ Code formatting (`go fmt`)
-- ✅ Linting (`go vet`)
-- ✅ Conventional commit messages
-- ✅ Branch protection rules
+### Branching strategy
 
-For detailed git workflow, see [BRANCHING.md](./BRANCHING.md).
+All work happens on short-lived feature branches. Direct pushes to `main` are blocked.
+
+```
+main          ← stable, protected
+  └── feat/my-feature    ← branch off main, work here
+  └── fix/the-bug        ← same pattern for fixes
+```
+
+**Start a feature:**
+
+```bash
+git checkout -b feat/your-feature
+# ... commit work ...
+```
+
+**Merge to main (after QA):**
+
+```bash
+./scripts/merge-to-main.sh
+```
+
+This script:
+1. Rebases your branch onto latest `main`
+2. Pushes the feature branch — `pre-push` hook runs `go test ./...`
+3. Fast-forward merges to `main` (no merge commits)
+4. Pushes `main`
+5. Deletes the feature branch locally and remotely
+
+### Hooks enforced automatically
+
+| Hook | What it does |
+| --- | --- |
+| `pre-commit` | `go fmt` + `go vet` on staged Go files |
+| `commit-msg` | Conventional commit format (`feat:`, `fix:`, etc.) |
+| `pre-push` | `go test ./...` when pushing to `main` |
+| `post-merge` | Auto-syncs hooks and runs `go mod tidy` if deps changed |
+
+Bypass any hook with `GIT_SKIP_HOOKS=1 git <command>` (not recommended).
 
 ## MCP Integration
 

@@ -8,6 +8,8 @@ All notable changes to Engram are documented here. Format based on [Keep a Chang
 - **MCP server connection issue** — Added `-mcp` flag to engram binary for stdio-only mode. Prevents HTTP server port conflicts when running alongside existing engram processes. Resolves "Not connected" errors in OpenCode MCP integration.
 
 ### Added
+- **Feature branch workflow** — Short-lived feature branches with QA-gated merges to main via `scripts/merge-to-main.sh`. Direct pushes to `main` blocked by `pre-push` hook.
+- **Tracked git hooks** — Hooks now live in `scripts/git-hooks/` (version-controlled). Install with `bash scripts/install-hooks.sh`. `post-merge` auto-syncs hooks when they change.
 - **MCP tool aliases** — New canonical tool names registered alongside originals for backwards compatibility:
   - `store_memory` → also available as `write_memory`, `remember`
   - `retrieve_context` → also available as `read_memory`, `recall`
