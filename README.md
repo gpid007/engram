@@ -109,12 +109,12 @@ it's running and connected.
 
 ### Skills
 
-Three skills ship with this repo for use in OpenCode:
+Three skills ship with this repo under `.opencode/skills/`:
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
-| `remember` | `/skill remember` | Store facts fast — splits people/relationships into separate calls |
-| `recall` | `/skill recall` | Retrieve memories for the current task or question |
+| `remember` | `/skill remember` | Store facts — splits people/relationships, falls back to `engram put` if MCP unavailable |
+| `recall` | `/skill recall` | Retrieve memories — falls back to `engram get` if MCP unavailable |
 | `engram` | `/skill engram` | Full reference — signatures, tag taxonomy, workflow patterns |
 
 **Quick usage:**
@@ -126,16 +126,19 @@ Three skills ship with this repo for use in OpenCode:
 
 `remember` and `recall` are the fast path. `engram` is the full reference.
 
-#### Global skills (available in every project)
+#### Install skills globally (available in every project)
 
-Copy the skills to `~/.config/opencode/skills/` to make them available everywhere:
+Copy all three skills to `~/.config/opencode/skills/`:
 
 ```bash
 cp -r .opencode/skills/engram ~/.config/opencode/skills/
+cp -r .opencode/skills/remember ~/.config/opencode/skills/
+cp -r .opencode/skills/recall ~/.config/opencode/skills/
 ```
 
-For `remember` and `recall`, they live in `~/.config/opencode/skills/` by default and
-are available globally across all projects.
+Once installed, any model in any project can use `/skill remember` and `/skill recall`
+to store and retrieve memories — using MCP tools if available, or the `engram` CLI
+binary as a fallback.
 
 ### Global AGENTS.md
 
