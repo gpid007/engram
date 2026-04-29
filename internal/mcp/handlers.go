@@ -82,6 +82,116 @@ func registerTools(s *Server) {
 		),
 	)
 	s.srv.AddTool(getUserStateTool, s.handleGetUserState)
+
+	// write_memory / remember — aliases for store_memory
+	writeMemoryTool := mcpmcp.NewTool("write_memory",
+		mcpmcp.WithDescription("Ingest content into Engram memory with optional user, source, and metadata."),
+		mcpmcp.WithString("content",
+			mcpmcp.Required(),
+			mcpmcp.Description("The content to store."),
+		),
+		mcpmcp.WithString("user_id",
+			mcpmcp.Description("User namespace (default: \"default\")."),
+		),
+		mcpmcp.WithString("source",
+			mcpmcp.Description("Origin label (e.g. filename, URL)."),
+		),
+		mcpmcp.WithObject("metadata",
+			mcpmcp.Description("Arbitrary JSON metadata object."),
+		),
+	)
+	s.srv.AddTool(writeMemoryTool, s.handleStoreMemory)
+
+	rememberTool := mcpmcp.NewTool("remember",
+		mcpmcp.WithDescription("Ingest content into Engram memory with optional user, source, and metadata."),
+		mcpmcp.WithString("content",
+			mcpmcp.Required(),
+			mcpmcp.Description("The content to store."),
+		),
+		mcpmcp.WithString("user_id",
+			mcpmcp.Description("User namespace (default: \"default\")."),
+		),
+		mcpmcp.WithString("source",
+			mcpmcp.Description("Origin label (e.g. filename, URL)."),
+		),
+		mcpmcp.WithObject("metadata",
+			mcpmcp.Description("Arbitrary JSON metadata object."),
+		),
+	)
+	s.srv.AddTool(rememberTool, s.handleStoreMemory)
+
+	// read_memory / recall — aliases for retrieve_context
+	readMemoryTool := mcpmcp.NewTool("read_memory",
+		mcpmcp.WithDescription("Retrieve relevant memory chunks via hybrid search (vector + BM25 + optional rerank)."),
+		mcpmcp.WithString("query",
+			mcpmcp.Required(),
+			mcpmcp.Description("The search query."),
+		),
+		mcpmcp.WithString("user_id",
+			mcpmcp.Description("User namespace (default: \"default\")."),
+		),
+		mcpmcp.WithNumber("k",
+			mcpmcp.Description("Number of results to return (default: 5)."),
+		),
+		mcpmcp.WithBoolean("rerank",
+			mcpmcp.Description("Whether to apply reranking (default: false)."),
+		),
+	)
+	s.srv.AddTool(readMemoryTool, s.handleRetrieveContext)
+
+	recallTool := mcpmcp.NewTool("recall",
+		mcpmcp.WithDescription("Retrieve relevant memory chunks via hybrid search (vector + BM25 + optional rerank)."),
+		mcpmcp.WithString("query",
+			mcpmcp.Required(),
+			mcpmcp.Description("The search query."),
+		),
+		mcpmcp.WithString("user_id",
+			mcpmcp.Description("User namespace (default: \"default\")."),
+		),
+		mcpmcp.WithNumber("k",
+			mcpmcp.Description("Number of results to return (default: 5)."),
+		),
+		mcpmcp.WithBoolean("rerank",
+			mcpmcp.Description("Whether to apply reranking (default: false)."),
+		),
+	)
+	s.srv.AddTool(recallTool, s.handleRetrieveContext)
+
+	// user_state / status — aliases for get_user_state
+	userStateAliasTool := mcpmcp.NewTool("user_state",
+		mcpmcp.WithDescription("Return aggregate memory statistics for a user."),
+		mcpmcp.WithString("user_id",
+			mcpmcp.Description("User namespace (default: \"default\")."),
+		),
+	)
+	s.srv.AddTool(userStateAliasTool, s.handleGetUserState)
+
+	statusTool := mcpmcp.NewTool("status",
+		mcpmcp.WithDescription("Return aggregate memory statistics for a user."),
+		mcpmcp.WithString("user_id",
+			mcpmcp.Description("User namespace (default: \"default\")."),
+		),
+	)
+	s.srv.AddTool(statusTool, s.handleGetUserState)
+
+	// erase_memory / forget — delete a memory by ID
+	eraseMemoryTool := mcpmcp.NewTool("erase_memory",
+		mcpmcp.WithDescription("Delete a memory by ID."),
+		mcpmcp.WithString("memory_id",
+			mcpmcp.Required(),
+			mcpmcp.Description("The ID of the memory to delete."),
+		),
+	)
+	s.srv.AddTool(eraseMemoryTool, s.handleEraseMemory)
+
+	forgetTool := mcpmcp.NewTool("forget",
+		mcpmcp.WithDescription("Delete a memory by ID."),
+		mcpmcp.WithString("memory_id",
+			mcpmcp.Required(),
+			mcpmcp.Description("The ID of the memory to delete."),
+		),
+	)
+	s.srv.AddTool(forgetTool, s.handleEraseMemory)
 }
 
 // --------------------------------------------------------------------------
@@ -303,6 +413,25 @@ func getBool(req mcpmcp.CallToolRequest, key string, defaultValue bool) bool {
 		return v != 0
 	}
 	return defaultValue
+}
+
+// -----------------------------------------------------------------------
+// erase_memory / forget handler
+// ----------------------------s-------------------------------------------
+
+func (s *Server) handleEraseMemory(ctx context.Context, req mcpmcp.CallToolRequest) (*mcpmcp.CallToolResult, error) {
+	memoryID, err := req.RequireString("memory_id")
+	if err != nil {
+		return errorResult("invalid_input", err.Error(), false), nil
+	}
+	memoryID = strings.TrimSpace(memoryID)
+	if memoryID == "" {
+		return errorResult("invalid_input", "memory_id must not be empty", false), nil
+	}
+	if err := s.ingestor.Delete(ctx, memoryID); err != nil {
+		return errorResult("delete_failed", err.Error(), false), nil
+	}
+	return mcpmcp.NewToolResultText(`{"deleted":true}`), nil
 }
 
 

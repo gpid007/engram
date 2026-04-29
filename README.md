@@ -86,8 +86,18 @@ For detailed git workflow, see [BRANCHING.md](./BRANCHING.md).
 
 ## MCP Integration
 
-Engram exposes three MCP tools: `store_memory`, `retrieve_context`,
-`get_user_state`. Connect via stdio against the running container or binary.
+Engram exposes MCP tools for memory operations. All original tool names remain registered for backwards compatibility.
+
+### MCP Tool Reference
+
+| Canonical name | Aliases                              | Description                 |
+| -------------- | ------------------------------------ | --------------------------- |
+| `write_memory` | `store_memory`, `remember`           | Store a memory              |
+| `read_memory`  | `retrieve_context`, `recall`         | Retrieve relevant memories  |
+| `user_state`   | `get_user_state`, `status`           | Get memory stats for a user |
+| `erase_memory` | `forget`                             | Delete a memory by ID       |
+
+Connect via stdio against the running container or binary.
 
 ### OpenCode — Local ONNX Binary (Recommended)
 

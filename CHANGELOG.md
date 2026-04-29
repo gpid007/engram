@@ -7,6 +7,14 @@ All notable changes to Engram are documented here. Format based on [Keep a Chang
 ### Fixed
 - **MCP server connection issue** — Added `-mcp` flag to engram binary for stdio-only mode. Prevents HTTP server port conflicts when running alongside existing engram processes. Resolves "Not connected" errors in OpenCode MCP integration.
 
+### Added
+- **MCP tool aliases** — New canonical tool names registered alongside originals for backwards compatibility:
+  - `store_memory` → also available as `write_memory`, `remember`
+  - `retrieve_context` → also available as `read_memory`, `recall`
+  - `get_user_state` → also available as `user_state`, `status`
+- **`forget` / `erase_memory` MCP tool** — Delete a memory by ID via MCP. Accepts `memory_id` (string, required). Both `forget` and `erase_memory` names are registered.
+- **Stdio transport documented** — MCP server runs in stdio-only mode via `-mcp` flag, eliminating HTTP port conflicts.
+
 ## [0.2.0] - 2026-04-29
 
 ### Added
