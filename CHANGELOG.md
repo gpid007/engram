@@ -6,6 +6,7 @@ All notable changes to Engram are documented here. Format based on [Keep a Chang
 
 ### Fixed
 - **MCP server connection issue** — Added `-mcp` flag to engram binary for stdio-only mode. Prevents HTTP server port conflicts when running alongside existing engram processes. Resolves "Not connected" errors in OpenCode MCP integration.
+- **CI test mock stubs** — Updated `MetaStore` and `VectorStore` mocks in 5 test files to implement `DeleteMemory`, `GetChunksByIDs`, and `DeleteByMemoryID` added by the `forget` tool feature.
 
 ### Added
 - **Feature branch workflow** — Short-lived feature branches with QA-gated merges to main via `scripts/merge-to-main.sh`. Direct pushes to `main` blocked by `pre-push` hook.
