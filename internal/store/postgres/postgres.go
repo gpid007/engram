@@ -5,6 +5,7 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"sort"
 	"strings"
@@ -78,6 +79,9 @@ type MetaStore interface {
 	EnqueuePending(ctx context.Context, chunkID string) error
 	DrainPending(ctx context.Context, limit int) ([]*PendingVector, error)
 	DeletePending(ctx context.Context, chunkID string) error
+	// GetChunksByIDs fetches chunk content for a set of chunk IDs.
+	// Results are returned in arbitrary order; missing IDs are silently skipped.
+	GetChunksByIDs(ctx context.Context, ids []string) ([]*Chunk, error)
 	Close() error
 }
 
@@ -322,6 +326,40 @@ func (s *Store) DrainPending(ctx context.Context, limit int) ([]*PendingVector, 
 func (s *Store) DeletePending(ctx context.Context, chunkID string) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM pending_vectors WHERE chunk_id=$1`, chunkID)
 	return err
+}
+
+// GetChunksByIDs fetches chunks by their IDs. Missing IDs are silently skipped.
+// Used to hydrate content for vector-only retrieval results.
+func (s *Store) GetChunksByIDs(ctx context.Context, ids []string) ([]*Chunk, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	// Build $1,$2,... placeholders.
+	args := make([]any, len(ids))
+	placeholders := make([]string, len(ids))
+	for i, id := range ids {
+		args[i] = id
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	query := fmt.Sprintf(
+		`SELECT id, memory_id, user_id, ord, content, content_hash, created_at
+		 FROM chunks WHERE id IN (%s)`,
+		strings.Join(placeholders, ","),
+	)
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var chunks []*Chunk
+	for rows.Next() {
+		c := &Chunk{}
+		if err := rows.Scan(&c.ID, &c.MemoryID, &c.UserID, &c.Ord, &c.Content, &c.ContentHash, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		chunks = append(chunks, c)
+	}
+	return chunks, rows.Err()
 }
 
 // Close closes the underlying connection pool.

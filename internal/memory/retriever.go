@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -268,6 +269,30 @@ func (r *Retriever) Retrieve(ctx context.Context, input RetrieveInput) (*Retriev
 	if len(candidates) > finalK {
 		candidates = candidates[:finalK]
 	}
+	// Collect chunk IDs that have no content (vector-only hits).
+	// Hydrate them in a single Postgres query rather than per-row.
+	missingIDs := make([]string, 0)
+	for _, c := range candidates {
+		content := c.Content
+		if content == "" {
+			content = fusedByID[c.ChunkID].Content
+		}
+		if content == "" {
+			missingIDs = append(missingIDs, c.ChunkID)
+		}
+	}
+	hydratedContent := make(map[string]string, len(missingIDs))
+	if len(missingIDs) > 0 {
+		chunks, err := r.meta.GetChunksByIDs(ctx, missingIDs)
+		if err != nil {
+			slog.Warn("content hydration failed", "err", err)
+		} else {
+			for _, ch := range chunks {
+				hydratedContent[ch.ID] = ch.Content
+			}
+		}
+	}
+
 	out := make([]RetrieveResult, 0, len(candidates))
 	for _, c := range candidates {
 		f := fusedByID[c.ChunkID]
@@ -284,6 +309,9 @@ func (r *Retriever) Retrieve(ctx context.Context, input RetrieveInput) (*Retriev
 		content := c.Content
 		if content == "" {
 			content = f.Content
+		}
+		if content == "" {
+			content = hydratedContent[c.ChunkID]
 		}
 		out = append(out, RetrieveResult{
 			MemoryID:  c.MemoryID,
