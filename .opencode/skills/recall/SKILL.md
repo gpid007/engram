@@ -12,8 +12,10 @@ Retrieve memories from Engram and use them to answer or orient.
 
 1. Identify the topic from the user's message or current task
 2. Call `retrieve_context` with that topic
-3. Surface relevant results directly in your response
-4. If nothing useful comes back, say so — don't hallucinate
+3. Read the tool output — each result has a `content` field with the stored text
+4. Quote the `content` values directly in your response — do NOT summarize or paraphrase
+5. If the results array is empty or all content fields are empty strings, say so and suggest `engram get "<query>"` as a fallback
+6. Never claim no memories exist if you haven't called the tool first
 
 ## Signature
 
@@ -24,8 +26,19 @@ retrieve_context(
   k:       5,                        # increase to 10 for broad topics
   rerank:  true
 )
-→ results[{ content, score, source, created_at }]
 ```
+
+Tool output format — read the `content` field from each result:
+```json
+{
+  "results": [
+    { "content": "Zita, born 1985-07-25", "score": 0.91, "source": "conversation" },
+    { "content": "Zita and Karim are a couple", "score": 0.87, "source": "conversation" }
+  ]
+}
+```
+
+**Always read and quote `result.content` in your response.**
 
 ## Common queries
 
