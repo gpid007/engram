@@ -1,17 +1,35 @@
-# Engram - Agent Rules
+# Global Agent Rules for Engram
+
+Copy this file to `~/.config/opencode/AGENTS.md` to enable Engram memory in every
+OpenCode session, regardless of which project or model you are using.
+
+```bash
+cp docs/global-agents.md ~/.config/opencode/AGENTS.md
+```
+
+---
+
+## Engram Memory — always active
 
 You have access to Engram MCP tools: `store_memory`, `retrieve_context`, `get_user_state`.
 **Always use `user_id: "greg"`.**
 
----
+### On session start — do this automatically
 
-## Act immediately — no permission needed
+Call these two tools at the start of every new session without being asked:
 
-When the user provides facts, store them **right away** without asking. One `store_memory` call per distinct entity or fact. Never batch unrelated facts into a single memory.
+```
+get_user_state("greg")                          # how many memories, top sources
+retrieve_context("greg", "recent decisions", 5) # what was last worked on
+```
 
-### Storing people and relationships
+Use the results to orient yourself before responding to the user's first message.
 
-Split every person and relationship into separate calls:
+### Store immediately — no permission needed
+
+When the user provides any fact, store it right away. One call per distinct entity or fact.
+
+**People — always split into separate calls:**
 
 | Fact | content | tags |
 |------|---------|------|
@@ -19,28 +37,18 @@ Split every person and relationship into separate calls:
 | Person | `"Karim, born 1981-12-12"` | `["people", "person", "karim"]` |
 | Relationship | `"Zita and Karim are a couple"` | `["people", "relationship", "zita", "karim"]` |
 
-### Store when you see
-
+**Store when you see:**
 - A person's name, birthday, role, or relationship
 - A preference: language, framework, tool, pattern
 - An architecture or technology decision and its reasoning
 - A workaround or solution to a recurring problem
 
-### Retrieve before you
+### Retrieve before you act
 
-- Recommend a framework, library, or pattern
-- Make an architecture decision
-- Answer anything about people, dates, or past decisions
-
----
-
-## Tool signatures
-
-```
-store_memory(user_id, content, metadata: { tags: string[], source: string })
-retrieve_context(user_id, query, k=5, rerank=true)
-get_user_state(user_id)
-```
+Call `retrieve_context` before:
+- Recommending a framework, library, or pattern
+- Making an architecture decision
+- Answering anything about people, dates, or past decisions
 
 ### Tag taxonomy
 
@@ -54,21 +62,9 @@ get_user_state(user_id)
 | Architecture | `["architecture", "decisions"]` |
 | Workarounds | `["workarounds", "<tech>"]` |
 
----
-
-## Starting a new session
-
-```
-get_user_state("greg")                        # orientation
-retrieve_context("greg", "recent decisions")  # what was last decided
-```
-
----
-
-## Troubleshooting
+### Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
 | Tools not available | `ctrl+p` → restart MCP server, or restart OpenCode |
-| Store fails | `docker ps` — check Postgres/Qdrant are up |
-| Empty results | Run `bash scripts/seed-memories.sh` |
+| Store/retrieve fails | `docker ps` — check Postgres/Qdrant are up |

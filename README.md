@@ -57,34 +57,98 @@ Engram exposes three MCP tools: `store_memory`, `retrieve_context`,
 ```bash
 cd /path/to/engram
 make build-onnx
-docker compose -f deploy/docker-compose.yml up -d
+bash start-stack.sh
 ```
 
-**Configure OpenCode** (`~/.config/opencode/opencode.json`):
+**Configure OpenCode** (`~/.config/opencode/opencode.jsonc`):
 
-```json
+```jsonc
 {
   "mcp": {
     "engram": {
       "type": "local",
       "command": ["/path/to/engram/bin/engram", "-config", "/path/to/engram/engram.local.yaml"],
       "enabled": true,
-      "timeout": 10000
+      "timeout": 10000,
+      "environment": {
+        "NEO4J_PASSWORD": "{env:NEO4J_PASSWORD}"
+      }
     }
   }
 }
 ```
 
-This uses the local `bin/engram` binary with `-tags onnxembed` for fast ONNX embeddings.
-No network, no Ollama container overhead.
+Or run the setup script to configure automatically:
 
-**Restart OpenCode** to load the updated Engram MCP server:
-```
-ctrl+p → "restart MCP server" or restart OpenCode entirely
+```bash
+bash scripts/setup-opencode.sh
 ```
 
-Now OpenCode's agents can use `store_memory` and `retrieve_context` tools to persist and
-recall memory with local ONNX inference.
+**Restart OpenCode** after config changes:
+```
+ctrl+p → "restart MCP server"  (or restart OpenCode entirely)
+```
+
+**Verify it's working:**
+```
+ctrl+p → "list MCP servers"   # engram should appear
+```
+
+### Agent behaviour (AGENTS.md)
+
+The repo ships an `AGENTS.md` that OpenCode injects into every session automatically.
+It instructs any model to:
+
+- **Store immediately** when the user provides facts — no asking for permission
+- **Split by entity** — one `store_memory` call per person, relationship, or fact
+- **Retrieve before recommending** — check memory before suggesting frameworks or patterns
+- **Always use `user_id: "greg"`**
+
+This means any model (Claude, Gemini, Llama, etc.) will use Engram correctly as long as
+it's running and connected.
+
+### Skills
+
+Three skills ship with this repo for use in OpenCode:
+
+| Skill | Trigger | Purpose |
+|-------|---------|---------|
+| `remember` | `/skill remember` | Store facts fast — splits people/relationships into separate calls |
+| `recall` | `/skill recall` | Retrieve memories for the current task or question |
+| `engram` | `/skill engram` | Full reference — signatures, tag taxonomy, workflow patterns |
+
+**Quick usage:**
+
+```
+/skill remember   → then give it facts: "Zita ist mit Karim zusammen..."
+/skill recall     → then ask: "what do I know about Zita?"
+```
+
+`remember` and `recall` are the fast path. `engram` is the full reference.
+
+#### Global skills (available in every project)
+
+Copy the skills to `~/.config/opencode/skills/` to make them available everywhere:
+
+```bash
+cp -r .opencode/skills/engram ~/.config/opencode/skills/
+```
+
+For `remember` and `recall`, they live in `~/.config/opencode/skills/` by default and
+are available globally across all projects.
+
+### Global AGENTS.md
+
+For memory retrieval to work in **any** project — not just this repo — copy the global
+agent rules:
+
+```bash
+cp docs/global-agents.md ~/.config/opencode/AGENTS.md
+```
+
+Or manually ensure `~/.config/opencode/AGENTS.md` contains the session-start retrieval
+instructions (see `docs/global-agents.md`). This tells every model to call
+`get_user_state` + `retrieve_context` automatically at the start of each session.
 
 ### Claude Desktop (`claude_desktop_config.json`)
 

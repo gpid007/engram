@@ -11,10 +11,16 @@ metadata:
 
 Engram is a hybrid-retrieval memory server for LLMs. It stores memories in Postgres (BM25) and Qdrant (dense vectors), fuses results with RRF, and serves them over MCP stdio to OpenCode.
 
+## Critical: act immediately on user data
+
+When the user provides facts — about people, preferences, events, decisions — **do not ask permission**. Call `store_memory` immediately, once per distinct entity or fact. Never batch unrelated facts into one memory.
+
 ## When to use Engram tools
 
 **`store_memory`** — call when:
 - User states a preference, pattern, or decision
+- User mentions a person (name, birthdate, relationship, role)
+- User provides facts about the world ("X is Y", "A and B are together")
 - A workaround or solution to a known problem is found
 - An architecture decision is made ("we use X because Y")
 - A new coding pattern is established
@@ -25,11 +31,33 @@ Engram is a hybrid-retrieval memory server for LLMs. It stores memories in Postg
 - Refactoring — check what patterns the user follows
 - Architecture decisions — check prior decisions
 - Any task where prior context could change the approach
+- Answering any question about people, dates, or relationships
 
 **`get_user_state`** — call when:
 - Starting a new session and need orientation
 - User asks "what do we know about X" broadly
 - Debugging memory gaps
+
+## Storing structured data: people and relationships
+
+When the user provides facts about **people**, split into separate `store_memory` calls:
+
+| Fact type | content example | tags |
+|---|---|---|
+| Person entity | `"Zita, born 1985-07-25"` | `["people", "person", "zita"]` |
+| Person entity | `"Karim, born 1981-12-12"` | `["people", "person", "karim"]` |
+| Relationship | `"Zita and Karim are a couple"` | `["people", "relationship", "zita", "karim"]` |
+
+**Never** combine `"Zita ist mit Karim zusammen. Karim ist am 12.12.1981 geboren."` into one memory. Always split by entity/fact.
+
+### Example: user says "Zita ist mit Karim zusammen. Karim ist am 12.12.1981 geboren. Zita ist am 25.7.1985 geboren."
+
+Call `store_memory` three times:
+```
+store_memory("greg", "Zita, born 1985-07-25", { tags: ["people", "person", "zita"], source: "conversation" })
+store_memory("greg", "Karim, born 1981-12-12", { tags: ["people", "person", "karim"], source: "conversation" })
+store_memory("greg", "Zita and Karim are a couple", { tags: ["people", "relationship", "zita", "karim"], source: "conversation" })
+```
 
 ## Tool signatures
 
