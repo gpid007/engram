@@ -4,6 +4,9 @@ All notable changes to Engram are documented here. Format based on [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+- **MCP server connection issue** — Added `-mcp` flag to engram binary for stdio-only mode. Prevents HTTP server port conflicts when running alongside existing engram processes. Resolves "Not connected" errors in OpenCode MCP integration.
+
 ## [0.2.0] - 2026-04-29
 
 ### Added

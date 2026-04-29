@@ -106,7 +106,7 @@ bash start-stack.sh
   "mcp": {
     "engram": {
       "type": "local",
-      "command": ["/path/to/engram/bin/engram", "-config", "/path/to/engram/engram.local.yaml"],
+      "command": ["/path/to/engram/bin/engram", "-mcp", "-config", "/path/to/engram/engram.local.yaml"],
       "enabled": true,
       "timeout": 10000,
       "environment": {
@@ -116,6 +116,8 @@ bash start-stack.sh
   }
 }
 ```
+
+The `-mcp` flag runs engram in stdio-only mode, disabling the HTTP server. This prevents port conflicts when running alongside an existing engram HTTP daemon.
 
 Or run the setup script to configure automatically:
 
