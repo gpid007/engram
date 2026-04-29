@@ -42,8 +42,10 @@ func (m *mockMetaStore) SearchBM25(ctx context.Context, userID, query string, k 
 func (m *mockMetaStore) GetUserState(ctx context.Context, userID string) (*postgres.UserState, error) {
 	return nil, nil
 }
-func (m *mockMetaStore) EnqueuePending(ctx context.Context, chunkID string) error { return nil }
-func (m *mockMetaStore) Close() error                                              { return nil }
+func (m *mockMetaStore) EnqueuePending(ctx context.Context, chunkID string) error              { return nil }
+func (m *mockMetaStore) GetChunksByIDs(_ context.Context, _ []string) ([]*postgres.Chunk, error) { return nil, nil }
+func (m *mockMetaStore) DeleteMemory(_ context.Context, _ string) error                         { return nil }
+func (m *mockMetaStore) Close() error                                                           { return nil }
 
 // --- mock VectorStore ---
 
@@ -54,7 +56,8 @@ func (m *mockVectorStore) Upsert(ctx context.Context, points []qdrant.Point) err
 func (m *mockVectorStore) Search(ctx context.Context, vector []float32, k uint64, userID string) ([]qdrant.SearchResult, error) {
 	return nil, nil
 }
-func (m *mockVectorStore) Close() error { return nil }
+func (m *mockVectorStore) DeleteByMemoryID(_ context.Context, _ string) error { return nil }
+func (m *mockVectorStore) Close() error                                       { return nil }
 
 // --- helpers ---
 

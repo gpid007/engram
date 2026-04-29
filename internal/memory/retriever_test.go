@@ -38,8 +38,10 @@ func (m *rmockMeta) EnqueuePending(context.Context, string) error               
 func (m *rmockMeta) DrainPending(context.Context, int) ([]*postgres.PendingVector, error) {
 	return nil, nil
 }
-func (m *rmockMeta) DeletePending(context.Context, string) error { return nil }
-func (m *rmockMeta) Close() error                                { return nil }
+func (m *rmockMeta) DeletePending(context.Context, string) error                       { return nil }
+func (m *rmockMeta) GetChunksByIDs(_ context.Context, _ []string) ([]*postgres.Chunk, error) { return nil, nil }
+func (m *rmockMeta) DeleteMemory(_ context.Context, _ string) error                    { return nil }
+func (m *rmockMeta) Close() error                                                      { return nil }
 
 type rmockVec struct {
 	res       []qdrant.SearchResult
@@ -59,7 +61,8 @@ func (v *rmockVec) Search(_ context.Context, _ []float32, _ uint64, userID strin
 	}
 	return v.res, v.err
 }
-func (v *rmockVec) Close() error { return nil }
+func (v *rmockVec) DeleteByMemoryID(_ context.Context, _ string) error { return nil }
+func (v *rmockVec) Close() error                                       { return nil }
 
 type rmockEmbedder struct {
 	dim   int

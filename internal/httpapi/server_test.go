@@ -51,8 +51,10 @@ func (m *mockMeta) EnqueuePending(_ context.Context, _ string) error       { ret
 func (m *mockMeta) DrainPending(_ context.Context, _ int) ([]*postgres.PendingVector, error) {
 	return nil, nil
 }
-func (m *mockMeta) DeletePending(_ context.Context, _ string) error { return nil }
-func (m *mockMeta) Close() error                                    { return nil }
+func (m *mockMeta) DeletePending(_ context.Context, _ string) error                        { return nil }
+func (m *mockMeta) GetChunksByIDs(_ context.Context, _ []string) ([]*postgres.Chunk, error) { return nil, nil }
+func (m *mockMeta) DeleteMemory(_ context.Context, _ string) error                         { return nil }
+func (m *mockMeta) Close() error                                                           { return nil }
 
 // newTestServer builds an httptest.Server backed by our Server using the
 // Ingestor/Retriever/MetaStore interfaces via thin wrapper structs so we

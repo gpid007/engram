@@ -298,7 +298,8 @@ func (errVecStore) Upsert(_ context.Context, _ []qdrantstore.Point) error { retu
 func (errVecStore) Search(_ context.Context, _ []float32, _ uint64, _ string) ([]qdrantstore.SearchResult, error) {
 	return nil, errors.New("vector store offline")
 }
-func (errVecStore) Close() error { return nil }
+func (errVecStore) DeleteByMemoryID(_ context.Context, _ string) error { return nil }
+func (errVecStore) Close() error                                        { return nil }
 
 // noopReranker leaves candidates in their input order. Used so we can request
 // rerank=true and exercise the "skip due to too few candidates" branch

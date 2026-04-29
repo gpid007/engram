@@ -74,8 +74,10 @@ func (m *mockMeta) EnqueuePending(_ context.Context, chunkID string) error {
 func (m *mockMeta) DrainPending(context.Context, int) ([]*postgres.PendingVector, error) {
 	return nil, nil
 }
-func (m *mockMeta) DeletePending(context.Context, string) error { return nil }
-func (m *mockMeta) Close() error                                { return nil }
+func (m *mockMeta) DeletePending(context.Context, string) error                       { return nil }
+func (m *mockMeta) GetChunksByIDs(_ context.Context, _ []string) ([]*postgres.Chunk, error) { return nil, nil }
+func (m *mockMeta) DeleteMemory(_ context.Context, _ string) error                    { return nil }
+func (m *mockMeta) Close() error                                                      { return nil }
 
 type mockVec struct {
 	upsertCalls int
@@ -92,7 +94,8 @@ func (v *mockVec) Upsert(_ context.Context, points []qdrant.Point) error {
 func (v *mockVec) Search(context.Context, []float32, uint64, string) ([]qdrant.SearchResult, error) {
 	return nil, nil
 }
-func (v *mockVec) Close() error { return nil }
+func (v *mockVec) DeleteByMemoryID(_ context.Context, _ string) error { return nil }
+func (v *mockVec) Close() error                                       { return nil }
 
 // --- helpers ---
 
