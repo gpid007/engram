@@ -58,5 +58,13 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
+# Symlink binary to ~/bin for PATH access
+mkdir -p "$HOME/bin"
+ln -sf "$BINARY" "$HOME/bin/engram"
+if ! grep -q 'HOME/bin' "$HOME/.zshenv" 2>/dev/null; then
+  echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.zshenv"
+fi
+
 echo "Engram daemon installed. HTTP: http://localhost:8080"
+echo "Binary available as: engram (restart shell if not found)"
 echo "Logs: tail -f $LOG_DIR/engram.err.log"

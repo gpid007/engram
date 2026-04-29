@@ -52,6 +52,8 @@ If `store_memory` is not in your tool list, use the `engram` binary directly:
 
 ```bash
 engram -config /Users/greg/git/engram/engram.local.yaml put "<raw text>"
+# or if ENGRAM_CONFIG is set:
+engram put "<raw text>"
 ```
 
 The binary calls a local Ollama model to split and tag automatically.

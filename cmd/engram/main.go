@@ -36,9 +36,11 @@ func main() {
 	flag.BoolVar(&mcpMode, "mcp", false, "run as MCP stdio server only (no HTTP)")
 	flag.Parse()
 
-	// Resolve config path: if not given, use "engram.yaml" if it exists.
+	// Resolve config path: flag > ENGRAM_CONFIG env > engram.yaml if exists.
 	if configPath == "" {
-		if _, err := os.Stat("engram.yaml"); err == nil {
+		if v := os.Getenv("ENGRAM_CONFIG"); v != "" {
+			configPath = v
+		} else if _, err := os.Stat("engram.yaml"); err == nil {
 			configPath = "engram.yaml"
 		}
 	}
