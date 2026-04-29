@@ -17,6 +17,14 @@ All notable changes to Engram are documented here. Format based on [Keep a Chang
   - `get_user_state` → also available as `user_state`, `status`
 - **`forget` / `erase_memory` MCP tool** — Delete a memory by ID via MCP. Accepts `memory_id` (string, required). Both `forget` and `erase_memory` names are registered.
 - **Stdio transport documented** — MCP server runs in stdio-only mode via `-mcp` flag, eliminating HTTP port conflicts.
+- **Git history cleanup** — Removed `models/` and `bin/` from all git history using `git-filter-repo`. Git object store reduced from 1.5 GB to ~288 KB.
+- **Git LFS** — ONNX model files tracked via Git LFS (`*.onnx`, `models/**`). Model files no longer bloat clones.
+- **Branch protection** — `main` branch protected: requires `Unit tests` + `Integration tests` CI checks, linear history, no force pushes.
+- **Auto-merge CI** — Feature branch PRs to `main` auto-merge via GitHub after all required checks pass (rebase strategy, no merge commits).
+- **Model download script** — `scripts/download-model.sh` fetches model assets from GitHub Releases by tag; replaces storing models in git.
+- **CI: golangci-lint + govulncheck** — Lint and security scan jobs added to CI, required before auto-merge.
+- **CI: race detector** — All unit tests now run with `-race` flag.
+- **Makefile: lint/race/coverage targets** — Added `make lint` (golangci-lint), `make race`, `make coverage` targets.
 
 ## [0.2.0] - 2026-04-29
 

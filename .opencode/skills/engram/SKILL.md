@@ -1,6 +1,6 @@
 ---
 name: engram
-description: Use Engram MCP tools to store and retrieve persistent memory across sessions. Covers when to call store_memory, retrieve_context, get_user_state, tag taxonomy, user_id conventions, local setup, and troubleshooting.
+description: Use Engram MCP tools to store and retrieve persistent memory across sessions. Covers when to call write_memory, read_memory, user_state, tag taxonomy, user_id conventions, local setup, and troubleshooting.
 compatibility: opencode
 metadata:
   user_id: greg
@@ -13,11 +13,11 @@ Engram is a hybrid-retrieval memory server for LLMs. It stores memories in Postg
 
 ## Critical: act immediately on user data
 
-When the user provides facts — about people, preferences, events, decisions — **do not ask permission**. Call `store_memory` immediately, once per distinct entity or fact. Never batch unrelated facts into one memory.
+When the user provides facts — about people, preferences, events, decisions — **do not ask permission**. Call `write_memory` immediately, once per distinct entity or fact. Never batch unrelated facts into one memory.
 
 ## When to use Engram tools
 
-**`store_memory`** — call when:
+**`write_memory`** — call when:
 - User states a preference, pattern, or decision
 - User mentions a person (name, birthdate, relationship, role)
 - User provides facts about the world ("X is Y", "A and B are together")
@@ -26,21 +26,21 @@ When the user provides facts — about people, preferences, events, decisions �
 - A new coding pattern is established
 - End of a significant task — capture what was learned
 
-**`retrieve_context`** — call before:
+**`read_memory`** — call before:
 - Making a recommendation (language, framework, library, pattern)
 - Refactoring — check what patterns the user follows
 - Architecture decisions — check prior decisions
 - Any task where prior context could change the approach
 - Answering any question about people, dates, or relationships
 
-**`get_user_state`** — call when:
+**`user_state`** — call when:
 - Starting a new session and need orientation
 - User asks "what do we know about X" broadly
 - Debugging memory gaps
 
 ## Storing structured data: people and relationships
 
-When the user provides facts about **people**, split into separate `store_memory` calls:
+When the user provides facts about **people**, split into separate `write_memory` calls:
 
 | Fact type | content example | tags |
 |---|---|---|
@@ -52,17 +52,17 @@ When the user provides facts about **people**, split into separate `store_memory
 
 ### Example: user says "Zita ist mit Karim zusammen. Karim ist am 12.12.1981 geboren. Zita ist am 25.7.1985 geboren."
 
-Call `store_memory` three times:
+Call `write_memory` three times:
 ```
-store_memory("greg", "Zita, born 1985-07-25", { tags: ["people", "person", "zita"], source: "conversation" })
-store_memory("greg", "Karim, born 1981-12-12", { tags: ["people", "person", "karim"], source: "conversation" })
-store_memory("greg", "Zita and Karim are a couple", { tags: ["people", "relationship", "zita", "karim"], source: "conversation" })
+write_memory("greg", "Zita, born 1985-07-25", { tags: ["people", "person", "zita"], source: "conversation" })
+write_memory("greg", "Karim, born 1981-12-12", { tags: ["people", "person", "karim"], source: "conversation" })
+write_memory("greg", "Zita and Karim are a couple", { tags: ["people", "relationship", "zita", "karim"], source: "conversation" })
 ```
 
 ## Tool signatures
 
 ```
-store_memory(
+write_memory(
   user_id:  "greg",          # always use "greg" for this user
   content:  string,          # the fact, pattern, or decision to remember
   metadata: {
@@ -72,7 +72,7 @@ store_memory(
 )
 → { memory_id, chunks_stored, chunks_deduped, stored }
 
-retrieve_context(
+read_memory(
   user_id: "greg",
   query:   string,           # natural language query
   k:       5,                # number of results (default 5)
@@ -80,7 +80,7 @@ retrieve_context(
 )
 → { results: [{ content, score, source, created_at }], stats }
 
-get_user_state(user_id: "greg")
+user_state(user_id: "greg")
 → { memory_count, chunk_count, first_memory, last_memory, top_sources }
 ```
 
@@ -105,16 +105,16 @@ Use these consistent tags for accurate retrieval:
 ### Before recommending anything
 
 ```
-1. retrieve_context("greg", "<topic> preferences patterns")
+1. read_memory("greg", "<topic> preferences patterns")
 2. Read results — surface relevant past decisions
 3. Base recommendation on history + current context
-4. After decision: store_memory with what was chosen and why
+4. After decision: write_memory with what was chosen and why
 ```
 
 ### After completing a task
 
 ```
-store_memory("greg",
+write_memory("greg",
   "Fixed ONNX build: daulet/tokenizers needs Rust + CARGO_TARGET_DIR in writable dir",
   { tags: ["workarounds", "onnx", "build"], source: "conversation" }
 )
@@ -123,9 +123,9 @@ store_memory("greg",
 ### Starting a new session
 
 ```
-get_user_state("greg")                          # orientation
-retrieve_context("greg", "recent decisions")    # what was decided last
-retrieve_context("greg", "<current task>")      # relevant context
+user_state("greg")                            # orientation
+read_memory("greg", "recent decisions")       # what was decided last
+read_memory("greg", "<current task>")          # relevant context
 ```
 
 ## Running locally
@@ -140,7 +140,7 @@ docker compose -f deploy/docker-compose.yml up -d
 # Verify MCP connection in OpenCode
 /mcp list              # should show "engram"
 /mcp debug engram      # test ping
-/mcp tools engram      # list store_memory, retrieve_context, get_user_state
+/mcp tools engram      # list write_memory, read_memory, user_state
 ```
 
 ## Health checks
@@ -182,7 +182,7 @@ This stores project architecture, known workarounds, and preferences into Engram
 | Symptom | Fix |
 | ------- | --- |
 | `engram` not in `/mcp list` | Restart OpenCode; check `opencode.json` binary path |
-| `store_memory` fails | Check `docker ps` — Postgres or Qdrant may be down |
+| `write_memory` fails | Check `docker ps` — Postgres or Qdrant may be down |
 | Empty retrieve results | Run `bash scripts/seed-memories.sh` to seed baseline context |
 | Slow embed (>50ms) | Binary may be stub build — run `make build-onnx` |
 | `NEO4J_PASSWORD` error | `export NEO4J_PASSWORD=engrampass` before `./run-local.sh` |

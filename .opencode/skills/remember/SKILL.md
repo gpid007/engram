@@ -1,6 +1,6 @@
 ---
 name: remember
-description: Immediately store one or more facts into Engram memory. Splits people, relationships, and facts into separate store_memory calls.
+description: Immediately store one or more facts into Engram memory. Splits people, relationships, and facts into separate write_memory calls.
 compatibility: opencode
 ---
 
@@ -10,7 +10,7 @@ Store facts into Engram now. No confirmation needed.
 
 ## Rules
 
-- One `store_memory` call per distinct fact or entity
+- One `write_memory` call per distinct fact or entity
 - Never batch unrelated facts together
 - Always `user_id: "greg"`
 
@@ -19,9 +19,9 @@ Store facts into Engram now. No confirmation needed.
 User says: _"Zita ist mit Karim zusammen. Karim ist am 12.12.1981 geboren. Zita ist am 25.7.1985 geboren."_
 
 ```
-store_memory("greg", "Zita, born 1985-07-25",       { tags: ["people", "person", "zita"],                    source: "conversation" })
-store_memory("greg", "Karim, born 1981-12-12",      { tags: ["people", "person", "karim"],                   source: "conversation" })
-store_memory("greg", "Zita and Karim are a couple", { tags: ["people", "relationship", "zita", "karim"],     source: "conversation" })
+write_memory("greg", "Zita, born 1985-07-25",       { tags: ["people", "person", "zita"],                    source: "conversation" })
+write_memory("greg", "Karim, born 1981-12-12",      { tags: ["people", "person", "karim"],                   source: "conversation" })
+write_memory("greg", "Zita and Karim are a couple", { tags: ["people", "relationship", "zita", "karim"],     source: "conversation" })
 ```
 
 ## Tag cheatsheet
@@ -39,7 +39,7 @@ store_memory("greg", "Zita and Karim are a couple", { tags: ["people", "relation
 ## Signature
 
 ```
-store_memory(
+write_memory(
   user_id:  "greg",
   content:  "<fact>",
   metadata: { tags: string[], source: "conversation" | "code-review" | "decision" }
@@ -48,7 +48,7 @@ store_memory(
 
 ## CLI alternative (when MCP tools unavailable)
 
-If `store_memory` is not in your tool list, use the `engram` binary directly:
+If `write_memory` is not in your tool list, use the `engram` binary directly:
 
 ```bash
 engram -config /Users/greg/git/engram/engram.local.yaml put "<raw text>"

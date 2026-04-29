@@ -18,12 +18,12 @@ cd engram
 make build-onnx
 
 # 2. Start full backend stack (Qdrant, Postgres, Neo4j)
-bash start-stack.sh
+docker compose -f deploy/docker-compose.yml up -d
 # Waits for services to be ready on localhost:5432, 6333, 7474
 
 # 3. Start Engram binary in another terminal
-bash run-local.sh
-# Waits for dependencies, then starts HTTP server on :8080
+./bin/engram -config engram.local.yaml
+# Starts HTTP server on :8080
 ```
 
 The `bin/engram` binary uses local ONNX inference (2–5ms per embedding vs. 50–100ms for Ollama).
@@ -42,6 +42,18 @@ curl -s -X POST http://localhost:8080/v1/retrieve \
   -H "Content-Type: application/json" \
   -d '{"user_id":"greg","query":"cell energy","k":3}' | jq '.Results | length'
 ```
+
+
+## Model Setup
+
+Models are not stored in git. Download them before first run:
+
+```bash
+bash scripts/download-model.sh           # downloads latest release
+bash scripts/download-model.sh v0.2.0    # specific version
+```
+
+Models are saved to `models/nomic-embed-text-v1.5/` (~520 MB, one-time download).
 
 ## CLI Commands
 
@@ -66,7 +78,7 @@ engram rm --dry-run <id>         # Preview without deleting
 engram status
 ```
 
-See [BRANCHING.md](./BRANCHING.md) for development workflow.
+
 
 ## Development Workflow
 
@@ -139,7 +151,7 @@ Connect via stdio against the running container or binary.
 ```bash
 cd /path/to/engram
 make build-onnx
-bash start-stack.sh
+docker compose -f deploy/docker-compose.yml up -d
 ```
 
 **Configure OpenCode** (`~/.config/opencode/opencode.jsonc`):
@@ -162,11 +174,7 @@ bash start-stack.sh
 
 The `-mcp` flag runs engram in stdio-only mode, disabling the HTTP server. This prevents port conflicts when running alongside an existing engram HTTP daemon.
 
-Or run the setup script to configure automatically:
 
-```bash
-bash scripts/setup-opencode.sh
-```
 
 **Restart OpenCode** after config changes:
 ```
@@ -184,7 +192,7 @@ The repo ships an `AGENTS.md` that OpenCode injects into every session automatic
 It instructs any model to:
 
 - **Store immediately** when the user provides facts — no asking for permission
-- **Split by entity** — one `store_memory` call per person, relationship, or fact
+- **Split by entity** — one `write_memory` call per person, relationship, or fact
 - **Retrieve before recommending** — check memory before suggesting frameworks or patterns
 - **Always use `user_id: "greg"`**
 
@@ -235,7 +243,7 @@ cp docs/global-agents.md ~/.config/opencode/AGENTS.md
 
 Or manually ensure `~/.config/opencode/AGENTS.md` contains the session-start retrieval
 instructions (see `docs/global-agents.md`). This tells every model to call
-`get_user_state` + `retrieve_context` automatically at the start of each session.
+`user_state` + `read_memory` automatically at the start of each session.
 
 ### Claude Desktop (`claude_desktop_config.json`)
 
@@ -456,37 +464,6 @@ Engram loads `engram.yaml` from the working directory by default, or from
 
 See `engram.yaml` for the full sample.
 
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────┐
-│ Transports:  MCP (stdio)  +  HTTP (JSON over POST)   │
-└──────────────┬───────────────────────────────────────┘
-               │ same tool handlers, two adapters
-┌──────────────▼───────────────────────────────────────┐
-│ Memory Service (internal/memory)                     │
-│   Ingestor · Retriever · Reconciler                  │
-│   Ports: VectorStore, MetaStore, Embedder,           │
-│          Reranker, Chunker, GraphStore (stub)        │
-└────┬──────────────┬──────────────────┬───────────────┘
-     │              │                  │
-   Qdrant       Postgres            Ollama | ONNX
-  (vectors)   (rows + tsvector)   (embed + LLM rerank)
-                                     │
-                            optional: cross-encoder
-                            (ONNX bge-reranker-base)
-                            optional: remote rerank API
-```
-
-Ingest path: `normalize → semantic chunk → embed (mean-pool sentences) →
-tx insert memories+chunks → Qdrant upsert → on Qdrant failure enqueue
-pending_vectors`.
-
-Retrieve path: `embed query → parallel{Qdrant search, Postgres BM25} → RRF
-fuse with vector cosine floor → optional rerank → optional graph expand (nop)
-→ final_k`.
-
-Deeper detail in [`docs/architecture.md`](docs/architecture.md).
 
 ## Reranker Modes
 
@@ -726,7 +703,7 @@ docker compose -f deploy/docker-compose.yml up
 
 Then set `ENGRAM_GRAPH_PROVIDER=neo4j` in your config or environment. If Neo4j is unavailable, Engram logs a warning and continues with vector + BM25 retrieval only.
 
-For details on schema, edge types, and failure semantics, see [`NEO4J.md`](./NEO4J.md).
+For details on schema, edge types, and failure semantics, see the Neo4j section of the configuration reference above.
 
 ## License
 

@@ -2,7 +2,7 @@
 # download-model.sh: fetch the embedding model from GitHub Releases
 #
 # The model is NOT stored in git. It is attached as a release asset on:
-#   https://github.com/gpid007/engram/releases
+#   https://github.com/gregdhill/engram/releases
 #
 # Usage:
 #   bash scripts/download-model.sh           # downloads latest tagged release
@@ -12,7 +12,7 @@
 
 set -e
 
-REPO="gpid007/engram"
+REPO="gregdhill/engram"
 MODEL_DIR="models/nomic-embed-text-v1.5"
 TAG="${1:-latest}"
 

@@ -11,7 +11,7 @@ Retrieve memories from Engram and use them to answer or orient.
 ## When the user invokes this skill
 
 1. Identify the topic from the user's message or current task
-2. Call `retrieve_context` with that topic
+2. Call `read_memory` with that topic
 3. Read the tool output — each result has a `content` field with the stored text
 4. Quote the `content` values directly in your response — do NOT summarize or paraphrase
 5. If the results array is empty or all content fields are empty strings, say so and suggest `engram get "<query>"` as a fallback
@@ -20,7 +20,7 @@ Retrieve memories from Engram and use them to answer or orient.
 ## Signature
 
 ```
-retrieve_context(
+read_memory(
   user_id: "greg",
   query:   "<topic or question>",   # natural language
   k:       5,                        # increase to 10 for broad topics
@@ -54,13 +54,13 @@ Tool output format — read the `content` field from each result:
 ## Orientation on session start
 
 ```
-get_user_state("greg")                          # total memories, top sources
-retrieve_context("greg", "recent decisions", 5) # last worked on
+user_state("greg")                               # total memories, top sources
+read_memory("greg", "recent decisions", 5)       # last worked on
 ```
 
 ## CLI alternative (when MCP tools unavailable)
 
-If `retrieve_context` is not in your tool list, use the `engram` binary directly:
+If `read_memory` is not in your tool list, use the `engram` binary directly:
 
 ```bash
 engram -config /Users/greg/git/engram/engram.local.yaml get "<query>"

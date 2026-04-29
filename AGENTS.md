@@ -1,13 +1,13 @@
 # Engram - Agent Rules
 
-You have access to Engram MCP tools: `store_memory`, `retrieve_context`, `get_user_state`.
+You have access to Engram MCP tools: `write_memory`, `read_memory`, `user_state`.
 **Always use `user_id: "greg"`.**
 
 ---
 
 ## Act immediately — no permission needed
 
-When the user provides facts, store them **right away** without asking. One `store_memory` call per distinct entity or fact. Never batch unrelated facts into a single memory.
+When the user provides facts, store them **right away** without asking. One `write_memory` call per distinct entity or fact. Never batch unrelated facts into a single memory.
 
 ### Storing people and relationships
 
@@ -37,10 +37,9 @@ Split every person and relationship into separate calls:
 ## Tool signatures
 
 ```
-store_memory(user_id, content, metadata: { tags: string[], source: string })
-retrieve_context(user_id, query, k=5, rerank=true)
-get_user_state(user_id)
-```
+write_memory(user_id, content, metadata: { tags: string[], source: string })
+read_memory(user_id, query, k=5, rerank=true)
+user_state(user_id)
 
 ### Tag taxonomy
 
@@ -59,9 +58,8 @@ get_user_state(user_id)
 ## Starting a new session
 
 ```
-get_user_state("greg")                        # orientation
-retrieve_context("greg", "recent decisions")  # what was last decided
-```
+user_state("greg")                            # orientation
+read_memory("greg", "recent decisions")        # what was last decided
 
 ---
 

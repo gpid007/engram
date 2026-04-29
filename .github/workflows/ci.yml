@@ -24,6 +24,34 @@ on:
     branches: ["**"]
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./.
+
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -43,16 +71,16 @@ jobs:
 
       - name: Test (non-Docker)
         run: |
-          go test ./cmd/... -count=1 -timeout 120s
-          go test ./internal/chunk/... -count=1 -timeout 120s
-          go test ./internal/config/... -count=1 -timeout 120s
-          go test ./internal/embed/... -count=1 -timeout 120s
-          go test ./internal/fusion/... -count=1 -timeout 120s
-          go test ./internal/graph/... -count=1 -timeout 120s
-          go test ./internal/httpapi/... -count=1 -timeout 120s
-          go test ./internal/mcp/... -count=1 -timeout 120s
-          go test ./internal/memory/... -count=1 -timeout 120s
-          go test ./internal/rerank/... -count=1 -timeout 120s
+          go test -race ./cmd/... -count=1 -timeout 120s
+          go test -race ./internal/chunk/... -count=1 -timeout 120s
+          go test -race ./internal/config/... -count=1 -timeout 120s
+          go test -race ./internal/embed/... -count=1 -timeout 120s
+          go test -race ./internal/fusion/... -count=1 -timeout 120s
+          go test -race ./internal/graph/... -count=1 -timeout 120s
+          go test -race ./internal/httpapi/... -count=1 -timeout 120s
+          go test -race ./internal/mcp/... -count=1 -timeout 120s
+          go test -race ./internal/memory/... -count=1 -timeout 120s
+          go test -race ./internal/rerank/... -count=1 -timeout 120s
 
   integration:
     name: Integration tests
@@ -122,7 +150,7 @@ jobs:
   auto-merge:
     name: Auto-merge to main
     # Only runs on PRs targeting main, after both test jobs pass
-    needs: [unit, integration]
+    needs: [lint, security, unit, integration]
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest
     permissions:

@@ -4,7 +4,7 @@ TOKENIZERS_MODULE    := $(shell go env GOPATH)/pkg/mod/github.com/daulet/tokeniz
 # Ensure ~/.cargo/bin is on PATH for non-interactive shells (rustup installs here).
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
-.PHONY: build build-onnx libtokenizers test lint up down daemon-install daemon-uninstall
+.PHONY: build build-onnx libtokenizers test lint race coverage up down daemon-install daemon-uninstall
 
 build:
 	go build ./...
@@ -21,7 +21,15 @@ test:
 	go test ./...
 
 lint:
-	go vet ./...
+	golangci-lint run ./...
+
+race:
+	go test -race ./...
+
+coverage:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
 
 up:
 	docker compose -f deploy/docker-compose.yml up -d

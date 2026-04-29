@@ -240,6 +240,9 @@ func main() {
 	)
 
 	// 13. Build reconciler with placeholder retryFn.
+	// TODO(reconciler): retryFn is a stub. Implement retry logic for failed
+	// vector upserts: read pending chunks from Postgres, re-embed, re-upsert
+	// to Qdrant, and call meta.DeletePending on success.
 	retryFn := func(ctx context.Context, chunkID string) error {
 		slog.Warn("pending vector retry not implemented", "chunk_id", chunkID)
 		return nil
