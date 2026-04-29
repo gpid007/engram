@@ -180,6 +180,15 @@ Run Engram as a persistent background service that survives shell close and star
 
 ### Install
 
+**Prerequisite:** Set `NEO4J_PASSWORD` in your shell profile so launchd inherits it:
+
+```bash
+echo 'export NEO4J_PASSWORD=engrampass' >> ~/.zshenv
+source ~/.zshenv
+```
+
+Then install the daemon:
+
 ```bash
 make daemon-install
 ```
@@ -187,8 +196,8 @@ make daemon-install
 This will:
 1. Copy `deploy/ai.engram.plist` to `~/Library/LaunchAgents/`
 2. Load it with `launchctl` (starts on login, restarts on crash)
-3. Start the Docker backend stack
-4. Wait for Postgres and Qdrant to be ready
+3. Start the Docker backend stack (Postgres, Qdrant, Neo4j)
+4. Wait up to 30s for Postgres and Qdrant to be ready
 
 ### Uninstall
 

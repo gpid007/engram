@@ -1,25 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ai.engram.plist — launchd service definition for the Engram HTTP server.
+
+  Installed to: ~/Library/LaunchAgents/ai.engram.plist
+  Managed by:   scripts/install-daemon.sh / scripts/uninstall-daemon.sh
+                or: make daemon-install / make daemon-uninstall
+
+  Behaviour:
+    - RunAtLoad: starts automatically on user login
+    - KeepAlive: restarts the process if it exits for any reason
+    - Logs stdout/stderr to /usr/local/var/log/engram/
+
+  NOTE: NEO4J_PASSWORD is left empty here. Set it in your shell profile
+  (~/.zshenv or ~/.zprofile) so launchd inherits it, or edit this file
+  to set the value before running make daemon-install.
+
+  NOTE: This daemon serves the HTTP API on :8080. OpenCode's MCP transport
+  (type: local) spawns its own separate engram process for stdio — they
+  do not conflict.
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>ai.engram</string>
+
     <key>ProgramArguments</key>
     <array>
         <string>/Users/greg/git/engram/bin/engram</string>
         <string>-config</string>
         <string>/Users/greg/git/engram/engram.local.yaml</string>
     </array>
+
+    <!-- Start on login and keep alive on exit/crash -->
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
+
+    <!-- Log files (directory created by install-daemon.sh) -->
     <key>StandardOutPath</key>
     <string>/usr/local/var/log/engram/engram.out.log</string>
     <key>StandardErrorPath</key>
     <string>/usr/local/var/log/engram/engram.err.log</string>
+
     <key>WorkingDirectory</key>
     <string>/Users/greg/git/engram</string>
+
+    <!-- Set NEO4J_PASSWORD here or export it from your shell profile -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>NEO4J_PASSWORD</key>
