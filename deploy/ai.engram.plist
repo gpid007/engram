@@ -51,7 +51,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>NEO4J_PASSWORD</key>
-        <string></string>
+        <string>engrampass</string>
     </dict>
 </dict>
 </plist>

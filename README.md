@@ -180,7 +180,15 @@ Run Engram as a persistent background service that survives shell close and star
 
 ### Install
 
-**Prerequisite:** Set `NEO4J_PASSWORD` in your shell profile so launchd inherits it:
+**Prerequisites:**
+
+Install the ONNX runtime shared library (required for local embeddings):
+
+```bash
+brew install onnxruntime
+```
+
+Set `NEO4J_PASSWORD` in your shell profile so launchd inherits it:
 
 ```bash
 echo 'export NEO4J_PASSWORD=engrampass' >> ~/.zshenv
