@@ -235,15 +235,14 @@ binary as a fallback.
 ### Global AGENTS.md
 
 For memory retrieval to work in **any** project — not just this repo — copy the global
-agent rules:
+agent rules from `AGENTS.md` at the repo root:
 
 ```bash
-cp docs/global-agents.md ~/.config/opencode/AGENTS.md
+cp /path/to/engram/AGENTS.md ~/.config/opencode/AGENTS.md
 ```
 
-Or manually ensure `~/.config/opencode/AGENTS.md` contains the session-start retrieval
-instructions (see `docs/global-agents.md`). This tells every model to call
-`user_state` + `read_memory` automatically at the start of each session.
+This tells every model to call `user_state` + `read_memory` automatically at the
+start of each session.
 
 ### Claude Desktop (`claude_desktop_config.json`)
 

@@ -134,8 +134,8 @@ read_memory("greg", "<current task>")          # relevant context
 # Ensure backends are up
 docker compose -f deploy/docker-compose.yml up -d
 
-# Start Engram (ONNX binary — no Ollama needed)
-./run-local.sh
+# Start Engram in MCP stdio mode (launched automatically by OpenCode)
+./bin/engram -mcp -config engram.local.yaml
 
 # Verify MCP connection in OpenCode
 /mcp list              # should show "engram"
@@ -185,4 +185,4 @@ This stores project architecture, known workarounds, and preferences into Engram
 | `write_memory` fails | Check `docker ps` — Postgres or Qdrant may be down |
 | Empty retrieve results | Run `bash scripts/seed-memories.sh` to seed baseline context |
 | Slow embed (>50ms) | Binary may be stub build — run `make build-onnx` |
-| `NEO4J_PASSWORD` error | `export NEO4J_PASSWORD=engrampass` before `./run-local.sh` |
+| `NEO4J_PASSWORD` error | `export NEO4J_PASSWORD=engrampass` before starting Engram |

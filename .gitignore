@@ -37,6 +37,9 @@ bin/
 # Use Git LFS if you need to version models: git lfs track "*.onnx"
 models/
 
+# OpenCode local package cache
+.opencode/node_modules/
+
 # Editor/IDE
 # .idea/
 # .vscode/
