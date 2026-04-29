@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/gregdhill/engram/internal/memory"
 	"github.com/gregdhill/engram/internal/store/postgres"
 )
@@ -51,6 +53,7 @@ func NewServer(
 func (s *Server) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("POST /v1/memories", s.wrap(http.HandlerFunc(s.handleStoreMemory)))
+	mux.Handle("DELETE /v1/memories/{id}", s.wrap(http.HandlerFunc(s.handleDeleteMemory)))
 	mux.Handle("POST /v1/retrieve", s.wrap(http.HandlerFunc(s.handleRetrieveContext)))
 	mux.Handle("GET /v1/users/", s.wrap(http.HandlerFunc(s.handleGetUserState)))
 	mux.Handle("GET /healthz", http.HandlerFunc(s.handleHealthz))
@@ -134,6 +137,23 @@ func (s *Server) handleStoreMemory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleDeleteMemory(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "missing memory id", http.StatusBadRequest)
+		return
+	}
+	if err := s.ingestor.Delete(r.Context(), id); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleRetrieveContext(w http.ResponseWriter, r *http.Request) {

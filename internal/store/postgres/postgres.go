@@ -82,6 +82,9 @@ type MetaStore interface {
 	// GetChunksByIDs fetches chunk content for a set of chunk IDs.
 	// Results are returned in arbitrary order; missing IDs are silently skipped.
 	GetChunksByIDs(ctx context.Context, ids []string) ([]*Chunk, error)
+	// DeleteMemory removes a memory and all its chunks atomically.
+	// Returns an error wrapping pgx.ErrNoRows if the memory does not exist.
+	DeleteMemory(ctx context.Context, memoryID string) error
 	Close() error
 }
 
@@ -360,6 +363,31 @@ func (s *Store) GetChunksByIDs(ctx context.Context, ids []string) ([]*Chunk, err
 		chunks = append(chunks, c)
 	}
 	return chunks, rows.Err()
+}
+
+// DeleteMemory removes a memory and all its chunks atomically.
+// Returns an error wrapping pgx.ErrNoRows if the memory does not exist.
+func (s *Store) DeleteMemory(ctx context.Context, memoryID string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("delete memory: begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM chunks WHERE memory_id = $1`, memoryID); err != nil {
+		return fmt.Errorf("delete chunks: %w", err)
+	}
+
+	var deleted string
+	err = tx.QueryRow(ctx, `DELETE FROM memories WHERE id = $1 RETURNING id`, memoryID).Scan(&deleted)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("memory not found: %s: %w", memoryID, pgx.ErrNoRows)
+		}
+		return fmt.Errorf("delete memory row: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
 // Close closes the underlying connection pool.

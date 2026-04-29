@@ -28,6 +28,8 @@ type VectorStore interface {
 	EnsureCollection(ctx context.Context, dim uint64) error
 	Upsert(ctx context.Context, points []Point) error
 	Search(ctx context.Context, vector []float32, k uint64, userID string) ([]SearchResult, error)
+	// DeleteByMemoryID removes all vectors associated with a memory ID.
+	DeleteByMemoryID(ctx context.Context, memoryID string) error
 	Close() error
 }
 
@@ -232,6 +234,26 @@ func anyToValue(v any) (*qdrantclient.Value, error) {
 }
 
 // fromQdrantPayload converts a Qdrant protobuf payload map back to map[string]any.
+// DeleteByMemoryID removes all Qdrant points whose payload "memory_id" == memoryID.
+func (s *Store) DeleteByMemoryID(ctx context.Context, memoryID string) error {
+	_, err := s.client.Delete(ctx, &qdrantclient.DeletePoints{
+		CollectionName: s.collection,
+		Points: &qdrantclient.PointsSelector{
+			PointsSelectorOneOf: &qdrantclient.PointsSelector_Filter{
+				Filter: &qdrantclient.Filter{
+					Must: []*qdrantclient.Condition{
+						qdrantclient.NewMatchKeyword("memory_id", memoryID),
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("qdrant: delete by memory_id %q: %w", memoryID, err)
+	}
+	return nil
+}
+
 func fromQdrantPayload(m map[string]*qdrantclient.Value) map[string]any {
 	if m == nil {
 		return nil

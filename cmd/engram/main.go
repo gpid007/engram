@@ -314,44 +314,96 @@ func main() {
 	_ = shutCtx // timeout context available for future blocking shutdown steps
 }
 
-// runCLI dispatches put/get/status subcommands against the running Engram HTTP server.
+// runCLI dispatches CLI subcommands against the running Engram HTTP server.
 // It does not start Postgres, Qdrant, or any server infrastructure.
 func runCLI(cfg *config.Config, args []string) {
+	if len(args) == 0 {
+		printUsage()
+		os.Exit(1)
+	}
+
 	parseTimeout := time.Duration(cfg.CLI.ParseTimeoutMS) * time.Millisecond
-	storeTimeout := 15 * time.Second
-	client := cli.NewClient(cfg.CLI.BaseURL, cfg.CLI.UserID, storeTimeout)
+	client := cli.NewClient(cfg.CLI.BaseURL, cfg.CLI.UserID, 15*time.Second)
 	parser := cli.NewOllamaParser(cfg.CLI.ParseBaseURL, cfg.CLI.ParseModel, cfg.CLI.UserID, parseTimeout)
 	rc := cli.RunConfig{Client: client, Parser: parser, UserID: cfg.CLI.UserID}
 	ctx := context.Background()
 
-	switch args[0] {
-	case "put":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: engram put <text>")
+	cmd := args[0]
+	rest := args[1:]
+
+	switch cmd {
+	case "add":
+		fs := flag.NewFlagSet("add", flag.ContinueOnError)
+		fileFlag := fs.String("f", "", "file to ingest (.txt or .md)")
+		fs.StringVar(fileFlag, "file", "", "file to ingest (.txt or .md)")
+		dirFlag := fs.String("d", "", "directory to ingest (walks .txt and .md recursively)")
+		fs.StringVar(dirFlag, "dir", "", "directory to ingest")
+		dryRun := fs.Bool("dry-run", false, "print what would be stored without storing")
+		if err := fs.Parse(rest); err != nil {
 			os.Exit(1)
 		}
-		if err := cli.RunPut(ctx, rc, strings.Join(args[1:], " ")); err != nil {
-			fmt.Fprintf(os.Stderr, "put: %v\n", err)
+		raw := strings.Join(fs.Args(), " ")
+		if err := cli.RunAdd(ctx, rc, raw, *fileFlag, *dirFlag, *dryRun); err != nil {
+			fmt.Fprintf(os.Stderr, "add: %v\n", err)
 			os.Exit(1)
 		}
-	case "get":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: engram get <query>")
+
+	case "find":
+		fs := flag.NewFlagSet("find", flag.ContinueOnError)
+		k := fs.Int("k", 5, "number of results to return")
+		if err := fs.Parse(rest); err != nil {
 			os.Exit(1)
 		}
-		if err := cli.RunGet(ctx, rc, strings.Join(args[1:], " "), 5); err != nil {
-			fmt.Fprintf(os.Stderr, "get: %v\n", err)
+		query := strings.Join(fs.Args(), " ")
+		if query == "" {
+			fmt.Fprintln(os.Stderr, "usage: engram find [--k N] <query>")
 			os.Exit(1)
 		}
+		if err := cli.RunFind(ctx, rc, query, *k); err != nil {
+			fmt.Fprintf(os.Stderr, "find: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "rm", "remove":
+		fs := flag.NewFlagSet("rm", flag.ContinueOnError)
+		queryFlag := fs.String("q", "", "semantic search query to find memories to delete")
+		fs.StringVar(queryFlag, "query", "", "semantic search query to find memories to delete")
+		force := fs.Bool("force", false, "skip confirmation prompt")
+		dryRun := fs.Bool("dry-run", false, "print what would be deleted without deleting")
+		if err := fs.Parse(rest); err != nil {
+			os.Exit(1)
+		}
+		ids := fs.Args()
+		if len(ids) == 0 && *queryFlag == "" {
+			fmt.Fprintln(os.Stderr, "usage: engram rm [--query <q>] [--force] [--dry-run] [<id>...]")
+			os.Exit(1)
+		}
+		if err := cli.RunRemove(ctx, rc, ids, *queryFlag, *force, *dryRun); err != nil {
+			fmt.Fprintf(os.Stderr, "rm: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "status":
 		if err := cli.RunStatus(ctx, rc); err != nil {
 			fmt.Fprintf(os.Stderr, "status: %v\n", err)
 			os.Exit(1)
 		}
+
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\nusage: engram <put|get|status> [args...]\n", args[0])
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
+		printUsage()
 		os.Exit(1)
 	}
+}
+
+func printUsage() {
+	fmt.Fprintln(os.Stderr, "usage: engram [flags] <command> [args]")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "commands:")
+	fmt.Fprintln(os.Stderr, "  add [-f file] [-d dir] [--dry-run] [text]        store memories")
+	fmt.Fprintln(os.Stderr, "  find [--k N] <query>                              retrieve memories")
+	fmt.Fprintln(os.Stderr, "  rm|remove [-q query] [--force] [--dry-run] [ids]  delete memories")
+	fmt.Fprintln(os.Stderr, "  status                                            server stats")
 }
 
 // min returns the smaller of a and b.

@@ -8,6 +8,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -158,3 +160,75 @@ func nopParse(raw string) []ParsedFact {
 // Compile-time interface checks.
 var _ Parser = (*OllamaParser)(nil)
 var _ Parser = NopParser{}
+
+// SplitParagraphs splits text into paragraphs for sequential local-model parsing.
+// Rules:
+//   - Split on blank lines (two or more consecutive newlines)
+//   - Start a new paragraph when a line begins with # (markdown heading)
+//   - Trim whitespace from each paragraph
+//   - Drop paragraphs shorter than 20 chars (noise)
+//   - If a paragraph exceeds 2000 chars, split on ". " sentence boundary
+func SplitParagraphs(text string) []string {
+	// First split on blank lines.
+	raw := strings.Split(text, "\n\n")
+	var sections []string
+	for _, block := range raw {
+		block = strings.TrimSpace(block)
+		if block == "" {
+			continue
+		}
+		// Sub-split on markdown headings (lines starting with #).
+		lines := strings.Split(block, "\n")
+		var current strings.Builder
+		for _, line := range lines {
+			if strings.HasPrefix(strings.TrimSpace(line), "#") && current.Len() > 0 {
+				if s := strings.TrimSpace(current.String()); len(s) >= 20 {
+					sections = append(sections, s)
+				}
+				current.Reset()
+			}
+			current.WriteString(line)
+			current.WriteByte('\n')
+		}
+		if s := strings.TrimSpace(current.String()); len(s) >= 20 {
+			sections = append(sections, s)
+		}
+	}
+
+	// Split oversized paragraphs on sentence boundaries.
+	var out []string
+	for _, s := range sections {
+		if len(s) <= 2000 {
+			out = append(out, s)
+			continue
+		}
+		sentences := strings.Split(s, ". ")
+		var chunk strings.Builder
+		for _, sent := range sentences {
+			if chunk.Len()+len(sent) > 2000 && chunk.Len() > 0 {
+				out = append(out, strings.TrimSpace(chunk.String()))
+				chunk.Reset()
+			}
+			chunk.WriteString(sent)
+			chunk.WriteString(". ")
+		}
+		if s := strings.TrimSpace(chunk.String()); len(s) >= 20 {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// ReadFileText reads a text file and returns its content.
+// Only .txt and .md files are supported.
+func ReadFileText(path string) (string, error) {
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext != ".txt" && ext != ".md" {
+		return "", fmt.Errorf("unsupported file type %q: only .txt and .md are supported", ext)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read file %q: %w", path, err)
+	}
+	return string(b), nil
+}

@@ -138,6 +138,30 @@ func (c *Client) State(ctx context.Context) (UserStateResponse, error) {
 	return resp, nil
 }
 
+// DeleteMemory deletes a memory by ID via DELETE /v1/memories/:id.
+// Returns nil on 204, a descriptive error on 404 or other failures.
+func (c *Client) DeleteMemory(ctx context.Context, memoryID string) error {
+	url := fmt.Sprintf("%s/v1/memories/%s", c.BaseURL, memoryID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("DELETE /v1/memories/%s: %w", memoryID, err)
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusNoContent:
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("memory not found: %s", memoryID)
+	default:
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("DELETE /v1/memories/%s: status %d: %s", memoryID, resp.StatusCode, body)
+	}
+}
+
 // post is a helper for JSON POST requests.
 func (c *Client) post(ctx context.Context, path string, body, out any) error {
 	b, err := json.Marshal(body)

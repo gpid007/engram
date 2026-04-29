@@ -129,6 +129,19 @@ func (ing *Ingestor) Close(ctx context.Context) error {
 	}
 }
 
+// Delete removes a memory from Postgres (canonical) and Qdrant (best-effort).
+// Postgres failure is fatal; Qdrant failure is logged as a warning.
+func (ing *Ingestor) Delete(ctx context.Context, memoryID string) error {
+	if err := ing.meta.DeleteMemory(ctx, memoryID); err != nil {
+		return fmt.Errorf("delete memory: %w", err)
+	}
+	if err := ing.vec.DeleteByMemoryID(ctx, memoryID); err != nil {
+		slog.Warn("qdrant delete failed (non-fatal)", "memory_id", memoryID, "err", err)
+	}
+	slog.Info("memory deleted", "memory_id", memoryID)
+	return nil
+}
+
 // dispatchGraph enqueues a graph write. Drops + logs if queue is full.
 func (ing *Ingestor) dispatchGraph(name string, fn func(context.Context)) {
 	select {
