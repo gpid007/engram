@@ -43,7 +43,46 @@ curl -s -X POST http://localhost:8080/v1/retrieve \
   -d '{"user_id":"greg","query":"cell energy","k":3}' | jq '.Results | length'
 ```
 
+## CLI Commands
 
+Engram provides a command-line interface for memory management:
+
+```bash
+# Store memories from text or files
+engram add "Remember this fact"
+engram add -f path/to/file.txt
+engram add -d path/to/directory/
+
+# Search memories
+engram find "query text"
+engram find -k 10 "semantic search"
+
+# Delete memories
+engram rm <memory-id>
+engram remove -q "old memories"  # Delete by semantic search
+engram rm --dry-run <id>         # Preview without deleting
+
+# View server status
+engram status
+```
+
+See [BRANCHING.md](./BRANCHING.md) for development workflow.
+
+## Development Workflow
+
+Install git hooks for automated code quality checks:
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+This enforces:
+- ✅ Code formatting (`go fmt`)
+- ✅ Linting (`go vet`)
+- ✅ Conventional commit messages
+- ✅ Branch protection rules
+
+For detailed git workflow, see [BRANCHING.md](./BRANCHING.md).
 
 ## MCP Integration
 

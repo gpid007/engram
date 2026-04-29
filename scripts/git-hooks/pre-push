@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Git pre-push hook: prevent direct pushes to protected branches
+
+# Allow bypass
+if [ "$GIT_SKIP_HOOKS" = "1" ]; then
+  exit 0
+fi
+
+# Read remote and refspec from stdin
+# Format: <remote> <remote-url> <local-ref> <local-sha> <remote-ref> <remote-sha>
+while read LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
+  # Extract branch name from refs/heads/branch-name
+  BRANCH=$(echo "$LOCAL_REF" | sed 's|refs/heads/||')
+
+  # Block direct pushes to protected branches
+  if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "develop" ]; then
+    echo "❌ Error: Cannot push directly to '$BRANCH'"
+    echo ""
+    echo "Please create a pull request instead:"
+    echo "  1. Push your feature branch: git push origin $BRANCH"
+    echo "  2. Open a PR on GitHub"
+    echo ""
+    echo "Protected branches require review before merge."
+    echo ""
+    echo "To bypass (not recommended): GIT_SKIP_HOOKS=1 git push"
+    exit 1
+  fi
+done
+
+exit 0

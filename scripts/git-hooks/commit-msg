@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Git commit-msg hook: validate conventional commits format
+
+COMMIT_MSG_FILE=$1
+
+# Read the commit message
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Allow merge and revert commits (git-generated)
+if [[ "$COMMIT_MSG" =~ ^(Merge|Revert) ]]; then
+  exit 0
+fi
+
+# Extract type and message
+TYPE=$(echo "$COMMIT_MSG" | head -1 | cut -d':' -f1 | sed 's/(.*//')
+MESSAGE=$(echo "$COMMIT_MSG" | head -1)
+
+# Valid commit types
+VALID_TYPES="^(feat|fix|docs|perf|refactor|chore|test|style|ci)"
+
+# Validate format: type(optional scope): message
+if ! [[ "$MESSAGE" =~ $VALID_TYPES ]]; then
+  echo "❌ Commit message does not follow conventional format"
+  echo ""
+  echo "Valid format: type(scope): message"
+  echo "Example:      feat(cli): add memory export"
+  echo ""
+  echo "Valid types: feat, fix, docs, perf, refactor, chore, test, style, ci"
+  exit 1
+fi
+
+# Check message length
+if [ ${#MESSAGE} -lt 10 ]; then
+  echo "❌ Commit message too short (minimum 10 characters)"
+  echo "Got: '$MESSAGE'"
+  exit 1
+fi
+
+exit 0

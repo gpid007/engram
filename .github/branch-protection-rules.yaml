@@ -1,0 +1,73 @@
+# GitHub Branch Protection Rules for Engram
+# These settings enforce code quality and review standards
+# Apply via: gh api repos/USERNAME/REPO/branches/main/protection --input rules.json
+
+branches:
+  main:
+    # Main is the production release branch - strict protection
+    protection:
+      required_status_checks:
+        strict: true  # Must be up to date before merge
+        contexts:
+          - "go test"
+          - "go build"
+          - "lint"
+      
+      required_pull_request_reviews:
+        dismissal_restrictions: ~  # No dismissals except admins
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: false
+        required_approving_review_count: 1
+      
+      required_linear_history: false
+      require_conversation_resolution: true
+      require_branches_up_to_date_before_merging: true
+      require_signed_commits: true
+      
+      allow_force_pushes: false
+      allow_deletions: false
+      enforce_admins: true
+      auto_delete_head_branch: true
+  
+  develop:
+    # Develop is the integration branch - moderate protection
+    protection:
+      required_status_checks:
+        strict: true
+        contexts:
+          - "go test"
+          - "lint"
+      
+      required_pull_request_reviews:
+        dismissal_restrictions: ~
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: false
+        required_approving_review_count: 1
+      
+      required_linear_history: false
+      require_conversation_resolution: false
+      require_branches_up_to_date_before_merging: true
+      require_signed_commits: false
+      
+      allow_force_pushes: false
+      allow_deletions: false
+      enforce_admins: false
+      auto_delete_head_branch: true
+
+# GitHub API commands to apply these rules:
+# (Install GitHub CLI: https://cli.github.com/)
+#
+# Main branch:
+#   gh api repos/{owner}/{repo}/branches/main/protection \
+#     -F required_status_checks='{"strict":true,"contexts":["go test","go build","lint"]}' \
+#     -F required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true}' \
+#     -F require_signed_commits=true \
+#     -F enforce_admins=true \
+#     -F auto_delete_head_branch=true
+#
+# Develop branch:
+#   gh api repos/{owner}/{repo}/branches/develop/protection \
+#     -F required_status_checks='{"strict":true,"contexts":["go test","lint"]}' \
+#     -F required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true}' \
+#     -F enforce_admins=false \
+#     -F auto_delete_head_branch=true

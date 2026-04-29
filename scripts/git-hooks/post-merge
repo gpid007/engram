@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Git post-merge hook: auto-update hooks, tidy dependencies, warn on CHANGELOG
+
+# Get list of files changed in the merge
+CHANGED_FILES=$(git diff --name-only HEAD@{1} HEAD 2>/dev/null || echo "")
+
+# Auto-update hooks if they changed
+if echo "$CHANGED_FILES" | grep -q "scripts/git-hooks/"; then
+  echo "📦 Hooks updated. Copying to .git/hooks/..."
+  
+  for hook in scripts/git-hooks/*; do
+    if [ -f "$hook" ]; then
+      HOOK_NAME=$(basename "$hook")
+      cp "$hook" ".git/hooks/$HOOK_NAME"
+      chmod +x ".git/hooks/$HOOK_NAME"
+      echo "  ✅ $HOOK_NAME"
+    fi
+  done
+fi
+
+# Auto-tidy go.mod/go.sum if they changed
+if echo "$CHANGED_FILES" | grep -qE "go\.(mod|sum)"; then
+  echo "📦 Dependencies changed. Running go mod tidy..."
+  go mod tidy
+fi
+
+# Warn if CHANGELOG.md not updated on develop→main merges
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" = "develop" ]; then
+  if ! echo "$CHANGED_FILES" | grep -q "CHANGELOG.md"; then
+    echo "⚠️  Warning: CHANGELOG.md was not updated in this merge"
+    echo "   Consider adding release notes before the next release."
+  fi
+fi
+
+exit 0
