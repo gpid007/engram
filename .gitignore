@@ -30,6 +30,13 @@ go.work.sum
 # ONNX build artifacts (Rust tokenizers library)
 .tokenizers-build/
 
+# Compiled binaries (use `make build` or `go build ./cmd/engram`)
+bin/
+
+# ML models — downloaded by scripts/download-model.sh, not stored in git
+# Use Git LFS if you need to version models: git lfs track "*.onnx"
+models/
+
 # Editor/IDE
 # .idea/
 # .vscode/

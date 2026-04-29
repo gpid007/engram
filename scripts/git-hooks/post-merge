@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # post-merge: tidy deps and sync hooks after a merge into main
+
+# Pull any new LFS objects introduced by this merge
+command -v git-lfs >/dev/null 2>&1 && git lfs pull || true
+
 CHANGED=$(git diff --name-only HEAD@{1} HEAD 2>/dev/null || true)
 
 # Sync hooks if they changed in this merge
