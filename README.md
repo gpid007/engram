@@ -208,15 +208,15 @@ make daemon-uninstall
 ### Logs
 
 ```bash
-tail -f /usr/local/var/log/engram/engram.out.log
-tail -f /usr/local/var/log/engram/engram.err.log
+tail -f ~/Library/Logs/engram/engram.out.log
+tail -f ~/Library/Logs/engram/engram.err.log
 ```
 
 ### Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| Daemon not starting | `launchctl list \| grep engram` — check exit code |
+| Daemon not starting | `launchctl list \| grep engram` — check exit code; logs at `~/Library/Logs/engram/` |
 | Binary not found | Run `make build-onnx` first |
 | Backends not ready | `docker compose -f deploy/docker-compose.yml ps` |
 | Restart daemon | `launchctl unload ~/Library/LaunchAgents/ai.engram.plist && launchctl load ~/Library/LaunchAgents/ai.engram.plist` |

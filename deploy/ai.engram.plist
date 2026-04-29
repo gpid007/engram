@@ -40,9 +40,9 @@
 
     <!-- Log files (directory created by install-daemon.sh) -->
     <key>StandardOutPath</key>
-    <string>/usr/local/var/log/engram/engram.out.log</string>
+    <string>/Users/greg/Library/Logs/engram/engram.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/usr/local/var/log/engram/engram.err.log</string>
+    <string>/Users/greg/Library/Logs/engram/engram.err.log</string>
 
     <key>WorkingDirectory</key>
     <string>/Users/greg/git/engram</string>

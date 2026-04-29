@@ -23,7 +23,7 @@ BINARY="$REPO/bin/engram"
 PLIST_SRC="$REPO/deploy/ai.engram.plist"
 PLIST_DST="$HOME/Library/LaunchAgents/ai.engram.plist"
 COMPOSE="$REPO/deploy/docker-compose.yml"
-LOG_DIR="/usr/local/var/log/engram"
+LOG_DIR="$HOME/Library/Logs/engram"
 
 # Ensure the binary exists before proceeding
 if [ ! -f "$BINARY" ]; then
